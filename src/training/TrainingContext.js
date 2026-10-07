@@ -5,7 +5,8 @@ import {
   todayStr, displayToIso, isValidCalendarDate, daysBetween, subtractDays, makeId, BG,
 } from './trainingUtils'
 
-const STORAGE_KEY = 'oneplan/training/v1'
+const STORAGE_KEY = 'trisync/training/v1'
+const LEGACY_STORAGE_KEY = 'oneplan/training/v1' // before the OnePlan → TriSync rename
 
 const TrainingContext = createContext(null)
 
@@ -19,6 +20,10 @@ export function TrainingProvider({ children }) {
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
       .then((stored) => {
+        // The save effect below moves legacy data to the new key once loaded
+        return stored || AsyncStorage.getItem(LEGACY_STORAGE_KEY)
+      })
+      .then((stored) => {
         if (!stored) return
         const data = JSON.parse(stored)
         setPlanRange(data.planRange || null)
@@ -29,7 +34,9 @@ export function TrainingProvider({ children }) {
 
   // Save only after loading, so the empty initial state never overwrites stored data
   useEffect(() => {
-    if (loaded) AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ planRange, workouts }))
+    if (!loaded) return
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ planRange, workouts }))
+      .then(() => AsyncStorage.removeItem(LEGACY_STORAGE_KEY))
   }, [loaded, planRange, workouts])
 
   const createPlan = ({ raceNameInput, raceDateInput, weeksInput }) => {

@@ -1,6 +1,7 @@
 import { Platform } from 'react-native'
 import * as WebBrowser from 'expo-web-browser'
 import * as Linking from 'expo-linking'
+import { daysBetween } from '../training/trainingUtils'
 
 // Set in .env.local (see .env.example). Expo inlines EXPO_PUBLIC_* vars into the bundle,
 // so the secret ships with the app: fine for a personal build, never deploy it publicly.
@@ -10,8 +11,7 @@ const CLIENT_SECRET = process.env.EXPO_PUBLIC_STRAVA_CLIENT_SECRET
 const API = 'https://www.strava.com/api/v3'
 const SCOPE = 'activity:read_all,activity:write'
 
-// Description block OnePlan owns; re-syncing replaces it instead of appending twice
-const MARKER = '— OnePlan —'
+const NAME_PREFIX = 'TriSync: '
 
 const SPORTS_RUN = ['Run', 'TrailRun', 'VirtualRun']
 const SPORTS_BIKE = ['Ride', 'VirtualRide', 'GravelRide', 'MountainBikeRide', 'EBikeRide', 'EMountainBikeRide']
@@ -60,7 +60,7 @@ export async function exchangeCode({ code, scope, error }) {
   if (error) throw new Error('Strava access was not granted.')
   const granted = (scope || '').split(',')
   if (!granted.includes('activity:write') || !granted.includes('activity:read_all')) {
-    throw new Error('OnePlan needs permission to view and edit your activities. Connect again and leave both boxes ticked.')
+    throw new Error('TriSync needs permission to view and edit your activities. Connect again and leave both boxes ticked.')
   }
   return requestToken({ code, grant_type: 'authorization_code' })
 }
@@ -89,7 +89,7 @@ export function takeWebRedirect() {
   return { code, error, scope: params.get('scope') }
 }
 
-// Native: in-app browser session that returns to the app's oneplan:// scheme
+// Native: in-app browser session that returns to the app's trisync:// scheme
 export async function nativeLogin() {
   const redirectUri = Linking.createURL('strava-auth')
   const result = await WebBrowser.openAuthSessionAsync(
@@ -124,30 +124,43 @@ export function matchingActivities(activities, type) {
   return activities.filter((a) => sports.includes(a.sport_type || a.type))
 }
 
-function buildUpdate(activity, workout) {
+// e.g. "Week 3 of 12 · 45 days to Berlin Marathon"; null outside the plan
+export function planLine(workout, plan) {
+  if (!plan) return null
+  const week = Math.floor(daysBetween(plan.start, workout.date) / 7) + 1
+  const daysToRace = daysBetween(workout.date, plan.raceDate)
+  const race = plan.raceName || 'race day'
+  if (daysToRace === 0) return `Race day: ${race}`
+  if (week < 1 || daysToRace < 0) return null
+  return `Week ${week} of ${plan.weeks} · ${daysToRace} ${daysToRace === 1 ? 'day' : 'days'} to ${race}`
+}
+
+// Title: "TriSync: <workout title>" (falls back to Strava's own name).
+// Description: the workout notes, prefixed "Brick Part N: " for brick legs.
+function buildUpdate(activity, workout, brickPart) {
   const update = {}
-  if (workout.title && workout.title !== activity.name) update.name = workout.title
 
-  const existing = activity.description || ''
-  const markerAt = existing.indexOf(MARKER)
-  const base = (markerAt >= 0 ? existing.slice(0, markerAt) : existing).trimEnd()
+  const baseName = workout.title || (activity.name || '').replace(NAME_PREFIX, '')
+  const name = `${NAME_PREFIX}${baseName}`
+  if (name !== activity.name) update.name = name
 
-  const blockLines = []
-  if (workout.status === 'partial') blockLines.push('Partially completed')
-  if (workout.notes) blockLines.push(workout.notes)
-  const block = blockLines.length ? `${MARKER}\n${blockLines.join('\n')}` : ''
-
-  const description = [base, block].filter(Boolean).join('\n\n')
-  if (description !== existing.trimEnd()) update.description = description
+  const brickLabel = workout.type === 'Brick' ? `Brick Part ${brickPart || 1}` : null
+  const description = brickLabel
+    ? [brickLabel, workout.notes].filter(Boolean).join(': ')
+    : workout.notes
+  // Leave Strava's description alone when TriSync has nothing to say
+  if (description && description !== (activity.description || '')) update.description = description
 
   return update
 }
 
-// Writes the planned title/notes onto a Strava activity. Returns the updated activity.
-export async function applyWorkoutToActivity(accessToken, activityId, workout) {
+export const getActivity = (accessToken, activityId) => api(accessToken, `/activities/${activityId}`)
+
+// Writes the workout's title and notes onto a Strava activity. Returns the updated activity.
+export async function applyWorkoutToActivity(accessToken, activityId, workout, brickPart) {
   // The list endpoint omits descriptions, so fetch the full activity first
-  const activity = await api(accessToken, `/activities/${activityId}`)
-  const update = buildUpdate(activity, workout)
+  const activity = await getActivity(accessToken, activityId)
+  const update = buildUpdate(activity, workout, brickPart)
   if (Object.keys(update).length === 0) return activity
 
   return api(accessToken, `/activities/${activityId}`, {

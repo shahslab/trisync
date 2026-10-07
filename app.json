@@ -5,9 +5,9 @@
       "android",
       "web"
     ],
-    "name": "oneplan",
-    "slug": "oneplan",
-    "scheme": "oneplan",
+    "name": "TriSync",
+    "slug": "trisync",
+    "scheme": "trisync",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

@@ -65,6 +65,7 @@ export default function App() {
         <TrainingProvider>
           <View style={{ flex: 1, ...(Platform.OS === 'web' ? { height: '100vh' } : null) }}>
             <NavigationContainer
+              documentTitle={{ formatter: (options, route) => `${options?.headerTitle ?? route?.name} · TriSync` }}
               theme={{
                 ...DarkTheme,
                 colors: { ...DarkTheme.colors, background: BG, card: SURFACE, border: BORDER, text: TEXT },

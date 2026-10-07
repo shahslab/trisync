@@ -4,10 +4,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   isStravaConfigured, canSyncType, exchangeCode, refreshSession, isExpired,
   startWebLogin, takeWebRedirect, nativeLogin,
-  activitiesOnDate, matchingActivities, applyWorkoutToActivity,
+  activitiesOnDate, matchingActivities, applyWorkoutToActivity, getActivity,
 } from './stravaApi'
 
-const STORAGE_KEY = 'oneplan/strava/v1'
+const STORAGE_KEY = 'trisync/strava/v1'
+const LEGACY_STORAGE_KEY = 'oneplan/strava/v1'
 
 const StravaContext = createContext(null)
 
@@ -38,9 +39,14 @@ export function StravaProvider({ children }) {
   useEffect(() => {
     (async () => {
       const stored = await AsyncStorage.getItem(STORAGE_KEY)
+      const legacy = stored ? null : await AsyncStorage.getItem(LEGACY_STORAGE_KEY)
       if (stored) {
         sessionRef.current = JSON.parse(stored)
         setSession(sessionRef.current)
+      } else if (legacy) {
+        // Saved before the OnePlan → TriSync rename
+        await saveSession(JSON.parse(legacy))
+        await AsyncStorage.removeItem(LEGACY_STORAGE_KEY)
       }
       // Returning from Strava's login page on web
       const redirect = takeWebRedirect()
@@ -73,20 +79,23 @@ export function StravaProvider({ children }) {
     return current.accessToken
   }
 
-  // Finds the Strava activity for a workout and writes the plan onto it.
+  // Finds the Strava activity for a workout and writes the workout onto it.
+  // linkedActivityIds: activities already synced to other workouts (never offered again).
+  // brickPart: 1 or 2 for brick legs, used in the description.
   // Pass activityId to skip matching (after the user picked one).
   // Returns { status: 'synced', activity } | { status: 'choose', activities } | { status: 'none' }
-  const syncWorkout = async (workout, activityId) => {
+  const syncWorkout = async (workout, { linkedActivityIds = [], brickPart } = {}, activityId) => {
     const token = await accessToken()
     let id = activityId || workout.stravaActivityId
     if (!id) {
-      const sameDay = await activitiesOnDate(token, workout.date)
+      const sameDay = (await activitiesOnDate(token, workout.date))
+        .filter((a) => !linkedActivityIds.includes(a.id))
       if (sameDay.length === 0) return { status: 'none' }
       const matches = matchingActivities(sameDay, workout.type)
       if (matches.length !== 1) return { status: 'choose', activities: matches.length ? matches : sameDay }
       id = matches[0].id
     }
-    const activity = await applyWorkoutToActivity(token, id, workout)
+    const activity = await applyWorkoutToActivity(token, id, workout, brickPart)
     return { status: 'synced', activity }
   }
 
@@ -97,6 +106,7 @@ export function StravaProvider({ children }) {
     disconnect,
     canSync: (workout) => !!session && canSyncType(workout.type),
     syncWorkout,
+    fetchActivity: async (activityId) => getActivity(await accessToken(), activityId),
   }
 
   return <StravaContext.Provider value={value}>{children}</StravaContext.Provider>

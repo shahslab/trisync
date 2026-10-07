@@ -10,6 +10,8 @@ import {
   ACCENT_PRIMARY, notesInputStyle,
 } from './trainingUtils'
 import { useStrava } from '../strava/StravaContext'
+import { useTraining } from './TrainingContext'
+import ActivityGraphicModal from '../strava/ActivityGraphicModal'
 
 export function Pill({ label, active, color, onPress, variant = 'default' }) {
   const isDanger = variant === 'danger'
@@ -100,7 +102,7 @@ function RowMenu({ onEdit, onDelete }) {
 
 const smallText = { fontFamily: FONT_REGULAR, fontSize: 12.5, lineHeight: 18, color: SUBTLE }
 
-function StravaSync({ workout, sync, onRun, onCancel }) {
+function StravaSync({ workout, sync, onRun, onCancel, onShowGraphic }) {
   if (sync?.state === 'syncing') {
     return <Text style={smallText}>Updating Strava…</Text>
   }
@@ -140,6 +142,7 @@ function StravaSync({ workout, sync, onRun, onCancel }) {
       <XStack gap="$2" ai="center" flexWrap="wrap">
         <Text style={{ ...smallText, flexShrink: 1 }}>Strava: {workout.stravaActivityName}</Text>
         {workout.status !== 'pending' && <Pill label="Sync again" onPress={() => onRun()} />}
+        <Pill label="Graphic" onPress={onShowGraphic} />
       </XStack>
     )
   }
@@ -154,6 +157,8 @@ export function WorkoutRow({ workout, today, onUpdate, onDelete }) {
   const [editNotes, setEditNotes] = useState(workout.notes || '')
 
   const strava = useStrava()
+  const { planRange, workouts } = useTraining()
+  const [showGraphic, setShowGraphic] = useState(false)
   const [sync, setSync] = useState(null) // { state: 'syncing' | 'none' | 'choose' | 'error', activities, message }
 
   const status = statusFor(workout, today)
@@ -162,7 +167,12 @@ export function WorkoutRow({ workout, today, onUpdate, onDelete }) {
   const runSync = async (target, activityId) => {
     setSync({ state: 'syncing' })
     try {
-      const result = await strava.syncWorkout(target, activityId)
+      // Brick legs are separate workouts on the same day; their order gives the part number
+      const sameDayBricks = workouts.filter((w) => w.date === target.date && w.type === 'Brick')
+      const result = await strava.syncWorkout(target, {
+        brickPart: sameDayBricks.findIndex((w) => w.id === target.id) + 1,
+        linkedActivityIds: workouts.filter((w) => w.id !== target.id && w.stravaActivityId).map((w) => w.stravaActivityId),
+      }, activityId)
       if (result.status === 'synced') {
         onUpdate(target.id, { stravaActivityId: result.activity.id, stravaActivityName: result.activity.name })
         setSync(null)
@@ -273,6 +283,16 @@ export function WorkoutRow({ workout, today, onUpdate, onDelete }) {
           sync={sync}
           onRun={(activityId) => runSync(workout, activityId)}
           onCancel={() => setSync(null)}
+          onShowGraphic={() => setShowGraphic(true)}
+        />
+      )}
+
+      {!!workout.stravaActivityId && (
+        <ActivityGraphicModal
+          workout={workout}
+          plan={planRange}
+          visible={showGraphic}
+          onClose={() => setShowGraphic(false)}
         />
       )}
     </YStack>
