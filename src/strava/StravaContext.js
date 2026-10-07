@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   hasKeys, callbackDomain, canSyncType, exchangeCode, refreshSession, isExpired,
   startWebLogin, takeWebRedirect, nativeLogin,
-  activitiesOnDate, matchingActivities, applyWorkoutToActivity, getActivity,
+  activitiesOnDate, matchingActivities, brickPartFor, applyWorkoutToActivity, getActivity,
 } from './stravaApi'
 
 export const STORAGE_KEY = 'trisync/strava/v1'
@@ -102,21 +102,42 @@ export function StravaProvider({ children }) {
 
   // Finds the Strava activity for a workout and writes the workout onto it.
   // linkedActivityIds: activities already synced to other workouts (never offered again).
-  // brickPart: 1 or 2 for brick legs, used in the description.
+  // brickSiblings: the day's other Brick workouts already synced, renumbered if needed.
   // Pass activityId to skip matching (after the user picked one).
   // Returns { status: 'synced', activity } | { status: 'choose', activities } | { status: 'none' }
-  const syncWorkout = async (workout, { linkedActivityIds = [], brickPart } = {}, activityId) => {
+  const syncWorkout = async (workout, { linkedActivityIds = [], brickSiblings = [] } = {}, activityId) => {
     const token = await accessToken()
+    let dayActivities = null
+    const loadDay = async () => (dayActivities ||= await activitiesOnDate(token, workout.date))
+
     let id = activityId || workout.stravaActivityId
     if (!id) {
-      const sameDay = (await activitiesOnDate(token, workout.date))
-        .filter((a) => !linkedActivityIds.includes(a.id))
+      const sameDay = (await loadDay()).filter((a) => !linkedActivityIds.includes(a.id))
       if (sameDay.length === 0) return { status: 'none' }
       const matches = matchingActivities(sameDay, workout.type)
-      if (matches.length !== 1) return { status: 'choose', activities: matches.length ? matches : sameDay }
+      // Brick legs always ask: a lone run or ride that day isn't necessarily this leg
+      if (matches.length !== 1 || workout.type === 'Brick') {
+        return { status: 'choose', activities: matches.length ? matches : sameDay }
+      }
       id = matches[0].id
     }
-    const activity = await applyWorkoutToActivity(token, id, workout, brickPart)
+
+    if (workout.type !== 'Brick') {
+      return { status: 'synced', activity: await applyWorkoutToActivity(token, id, workout) }
+    }
+
+    const day = await loadDay()
+    const legIds = [id, ...brickSiblings.map((w) => w.stravaActivityId)]
+    const activity = await applyWorkoutToActivity(token, id, workout, brickPartFor(day, legIds, id))
+    // A leg synced earlier may have a new number now this one is known (e.g. the run was
+    // marked first and called Part 1, then the earlier ride arrives). Unchanged ones aren't rewritten.
+    try {
+      for (const sibling of brickSiblings) {
+        await applyWorkoutToActivity(token, sibling.stravaActivityId, sibling, brickPartFor(day, legIds, sibling.stravaActivityId))
+      }
+    } catch (e) {
+      notify(`Synced, but couldn't renumber the other brick leg on Strava: ${e.message}`)
+    }
     return { status: 'synced', activity }
   }
 

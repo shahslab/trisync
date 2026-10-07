@@ -173,11 +173,10 @@ export function WorkoutRow({ workout, today, onUpdate, onDelete }) {
   const runSync = async (target, activityId) => {
     setSync({ state: 'syncing' })
     try {
-      // Brick legs are separate workouts on the same day; their order gives the part number
-      const sameDayBricks = workouts.filter((w) => w.date === target.date && w.type === 'Brick')
+      const linked = workouts.filter((w) => w.id !== target.id && w.stravaActivityId)
       const result = await strava.syncWorkout(target, {
-        brickPart: sameDayBricks.findIndex((w) => w.id === target.id) + 1,
-        linkedActivityIds: workouts.filter((w) => w.id !== target.id && w.stravaActivityId).map((w) => w.stravaActivityId),
+        linkedActivityIds: linked.map((w) => w.stravaActivityId),
+        brickSiblings: target.type === 'Brick' ? linked.filter((w) => w.type === 'Brick' && w.date === target.date) : [],
       }, activityId)
       if (result.status === 'synced') {
         onUpdate(target.id, { stravaActivityId: result.activity.id, stravaActivityName: result.activity.name })

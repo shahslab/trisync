@@ -138,6 +138,17 @@ export function matchingActivities(activities, type) {
   return activities.filter((a) => sports.includes(a.sport_type || a.type))
 }
 
+// Brick legs are numbered by Strava start time among the activities picked for that day's
+// brick (legIds), so the first leg is Part 1 whatever order the workouts were entered or
+// marked in, and other activities that day can't shift the numbers.
+export function brickPartFor(dayActivities, legIds, activityId) {
+  const legs = dayActivities
+    .filter((a) => legIds.includes(a.id))
+    .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''))
+  const index = legs.findIndex((a) => a.id === activityId)
+  return index >= 0 ? index + 1 : 1
+}
+
 // e.g. "Week 3 of 12 · 45 days to Berlin Marathon"; null outside the plan
 export function planLine(workout, plan) {
   if (!plan) return null
