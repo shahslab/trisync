@@ -20,7 +20,8 @@ import {
 import TrainingCalendarScreen from './src/screens/TrainingCalendarScreen'
 import TodaysActivitiesScreen from './src/screens/TodaysActivitiesScreen'
 import TrainingHeaderMenu from './src/components/TrainingHeaderMenu'
-import { TrainingProvider } from './src/training/TrainingContext'
+import { TrainingProvider, useTraining } from './src/training/TrainingContext'
+import SplashOverlay from './src/components/SplashOverlay'
 import { StravaProvider } from './src/strava/StravaContext'
 import { FONT_BOLD, FONT_SEMIBOLD } from './src/training/trainingUtils'
 import { ThemeProvider, AppBackground, useTheme } from './src/theme/ThemeContext'
@@ -57,7 +58,7 @@ function AppShell() {
       backgroundColor: t.tabBar,
       borderTopColor: t.border,
       borderTopWidth: 1,
-      height: 64,
+      height: 72,
       paddingBottom: 10,
       paddingTop: 8,
       ...(t.gradient ? { backdropFilter: 'blur(18px)' } : null),
@@ -75,47 +76,61 @@ function AppShell() {
     }
   }, [t])
 
-  if (!fontsLoaded) {
-    return <View style={{ flex: 1, backgroundColor: t.bgSolid }} />
-  }
-
   return (
-    <TamaguiProvider config={tamaguiConfig} defaultTheme="dark">
-      <Theme name={t.isDark ? 'dark' : 'light'}>
-        <StravaProvider>
-          <TrainingProvider>
-            <View style={{ flex: 1, ...(Platform.OS === 'web' ? { height: '100vh' } : null) }}>
-              <AppBackground>
-                <NavigationContainer
-                  documentTitle={{ formatter: (options, route) => `${options?.headerTitle ?? route?.name} · TriSync` }}
-                  theme={navigationTheme}
-                >
-                  <Tab.Navigator screenOptions={screenOptions}>
-                    <Tab.Screen
-                      name="TodaysActivities"
-                      component={TodaysActivitiesScreen}
-                      options={{
-                        headerTitle: "Today's Activities",
-                        tabBarLabel: 'Today',
-                        tabBarIcon: ({ color, size }) => <Ionicons name="today-outline" size={size} color={color} />,
-                      }}
-                    />
-                    <Tab.Screen
-                      name="TrainingPlan"
-                      component={TrainingCalendarScreen}
-                      options={{
-                        headerTitle: 'Training Plan',
-                        tabBarLabel: 'Calendar',
-                        tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" size={size} color={color} />,
-                      }}
-                    />
-                  </Tab.Navigator>
-                </NavigationContainer>
-              </AppBackground>
-            </View>
-          </TrainingProvider>
-        </StravaProvider>
-      </Theme>
-    </TamaguiProvider>
+    <View style={{ flex: 1, backgroundColor: t.bgSolid }}>
+      {fontsLoaded && (
+        <TamaguiProvider config={tamaguiConfig} defaultTheme="dark">
+          <Theme name={t.isDark ? 'dark' : 'light'}>
+            <StravaProvider>
+              <TrainingProvider>
+                <View style={{ flex: 1, ...(Platform.OS === 'web' ? { height: '100vh' } : null) }}>
+                  <AppBackground>
+                    <NavigationContainer
+                      documentTitle={{ formatter: (options, route) => `${options?.headerTitle ?? route?.name} · TriSync` }}
+                      theme={navigationTheme}
+                    >
+                      <MainTabs screenOptions={screenOptions} />
+                    </NavigationContainer>
+                  </AppBackground>
+                </View>
+              </TrainingProvider>
+            </StravaProvider>
+          </Theme>
+        </TamaguiProvider>
+      )}
+      <SplashOverlay ready={fontsLoaded} />
+    </View>
+  )
+}
+
+// Rendered inside TrainingProvider, which only mounts once saved data has loaded,
+// so planRange is final here when the navigator picks its first tab
+function MainTabs({ screenOptions }) {
+  const { planRange } = useTraining()
+  return (
+    <Tab.Navigator
+      screenOptions={screenOptions}
+      // New users land on the Calendar tab's "Set Up Your Race" form
+      initialRouteName={planRange ? 'TodaysActivities' : 'TrainingPlan'}
+    >
+      <Tab.Screen
+        name="TodaysActivities"
+        component={TodaysActivitiesScreen}
+        options={{
+          headerTitle: "Today's Activities",
+          tabBarLabel: 'Today',
+          tabBarIcon: ({ color, size }) => <Ionicons name="today-outline" size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="TrainingPlan"
+        component={TrainingCalendarScreen}
+        options={{
+          headerTitle: 'Training Plan',
+          tabBarLabel: 'Calendar',
+          tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" size={size} color={color} />,
+        }}
+      />
+    </Tab.Navigator>
   )
 }

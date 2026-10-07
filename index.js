@@ -8,6 +8,8 @@ if (Platform.OS === 'web') {
   // Hide inactive tabs with display:none. Without it, web stacks them and relies on opaque
   // screen backgrounds, so they show through each other in gradient themes.
   require('react-native-screens').enableScreens(true)
+  // Catch the browser's install prompt before the app mounts (used by the ☰ menu)
+  require('./src/pwa/installPrompt')
   // Offline support / installability for the deployed web app; skipped in dev to avoid stale caches
   if (!__DEV__ && 'serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'))

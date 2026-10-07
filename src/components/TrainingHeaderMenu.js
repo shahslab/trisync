@@ -9,6 +9,8 @@ import { useStrava } from '../strava/StravaContext'
 import { FONT_REGULAR, FONT_SEMIBOLD } from '../training/trainingUtils'
 import { useTheme } from '../theme/ThemeContext'
 import SettingsModal from './SettingsModal'
+import InstallModal from '../pwa/InstallModal'
+import { useInstallPrompt } from '../pwa/installPrompt'
 
 const itemStyle = { paddingVertical: 10, paddingHorizontal: 10 }
 
@@ -20,6 +22,13 @@ export default function TrainingHeaderMenu() {
   const itemText = { fontFamily: FONT_SEMIBOLD, fontSize: 14, color: t.text }
   const [open, setOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [installOpen, setInstallOpen] = useState(false)
+  const install = useInstallPrompt()
+
+  // Use the browser's own install prompt when it offers one; otherwise show the steps
+  const startInstall = async () => {
+    if (!(await install.prompt())) setInstallOpen(true)
+  }
 
   const choose = (action) => () => {
     setOpen(false)
@@ -77,11 +86,18 @@ export default function TrainingHeaderMenu() {
             <Pressable onPress={choose(() => setSettingsOpen(true))} style={itemStyle}>
               <Text style={itemText}>Settings</Text>
             </Pressable>
+
+            {install.available && (
+              <Pressable onPress={choose(startInstall)} style={itemStyle}>
+                <Text style={{ ...itemText, color: t.secondary }}>Install TriSync</Text>
+              </Pressable>
+            )}
           </YStack>
         </Popover.Content>
       </Popover>
 
       <SettingsModal visible={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <InstallModal visible={installOpen} onClose={() => setInstallOpen(false)} />
     </>
   )
 }

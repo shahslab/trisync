@@ -18,7 +18,7 @@ There are no build-time secrets. Each user enters their own Strava API app's Cli
 
 There is no test runner, linter, or formatter configured.
 
-**Deploy:** `.github/workflows/deploy-web.yml` publishes the web build to GitHub Pages on every push to `master`. `app.config.js` applies `experiments.baseUrl` only when `EXPO_BASE_URL` is set, so local dev still serves from `/`. `public/` holds the PWA files: a customised `index.html` with manifest and home-screen tags, `manifest.json`, the icons, and a network-first `sw.js`. `index.js` registers the service worker on web in production only. Paths in `public/` must stay relative, so they work under the `/trisync/` base path.
+**Deploy:** `.github/workflows/deploy-web.yml` publishes the web build to GitHub Pages on every push to `master`. `app.config.js` applies `experiments.baseUrl` only when `EXPO_BASE_URL` is set, so local dev still serves from `/`. `public/` holds the PWA files: a customised `index.html` with manifest and home-screen tags, `manifest.json`, the icons, and a network-first `sw.js`. `index.js` registers the service worker on web in production only. `src/pwa/installPrompt.js` is imported early in `index.js` so it catches Chrome's one-time `beforeinstallprompt` event before React mounts. The ☰ menu's "Install TriSync" item replays that prompt, or opens `InstallModal` with per-platform steps (iOS never fires the event). The item is hidden when the app is already running installed. Paths in `public/` must stay relative, so they work under the `/trisync/` base path.
 
 ## Architecture
 
