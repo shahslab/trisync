@@ -1,0 +1,33 @@
+/* Give React Native Web a real, scrollable viewport */
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* IMPORTANT:
+   - If body/root have overflow:hidden, inner lists often won't scroll.
+   - Use overflow:auto to allow scroll containers to work properly.
+*/
+body {
+  overflow: auto;
+}
+
+/* #root must be a flex column that fills height */
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  width: 100%;
+}
+
+/* Expo / RN Web sometimes mounts into #root > div */
+#root > div {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0; /* KEY: allows children (FlatList) to be scrollable */
+}

@@ -1,7 +1,12 @@
 {
   "expo": {
-    "name": "endurance-express",
-    "slug": "endurance-express",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "name": "oneplan",
+    "slug": "oneplan",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -23,7 +28,11 @@
       "edgeToEdgeEnabled": true
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    }
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }
