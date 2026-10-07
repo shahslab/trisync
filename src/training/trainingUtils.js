@@ -60,49 +60,26 @@ export function statusFor(workout, todayIso) {
 
 export const TYPE_LIST = Object.values(WORKOUT_TYPES)
 
-// --- Elite dark theme ---
-export const BG = '#0b1220'            // app background
-export const SURFACE = '#141b2d'       // card surface
-export const SURFACE_RAISED = '#1b2436' // input / inset surface
-export const BORDER = '#243044'
-export const TEXT = '#f1f5f9'
-export const SUBTLE = '#8b98b0'
-
-export const ACCENT_TEAL = '#2dd4bf'
-export const ACCENT_PURPLE = '#8b5cf6'
-export const ACCENT_PRIMARY = ACCENT_PURPLE
-
-export const STATUS_COLORS = {
-  done: '#34d399',
-  partial: '#a78bfa',
-  missed: '#f87171',
-  upcoming: '#2dd4bf',
-}
-export const RACE_COLOR = '#fbbf24'
-
+// Colours live in src/theme (useTheme); only fonts and theme-derived styles are here
 export const FONT_REGULAR = 'Manrope_400Regular'
 export const FONT_MEDIUM = 'Manrope_500Medium'
 export const FONT_SEMIBOLD = 'Manrope_600SemiBold'
 export const FONT_BOLD = 'Manrope_700Bold'
 export const FONT_EXTRABOLD = 'Manrope_800ExtraBold'
 
-export const CARD_SHADOW = {
-  boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
-}
-
-export const notesInputStyle = {
+export const notesInputStyle = (theme) => ({
   borderWidth: 1,
-  borderColor: BORDER,
+  borderColor: theme.border,
   borderRadius: 12,
   padding: 12,
   minHeight: 76,
   fontSize: 14,
   lineHeight: 20,
   width: '100%',
-  color: TEXT,
-  backgroundColor: SURFACE_RAISED,
+  color: theme.text,
+  backgroundColor: theme.surfaceRaised,
   fontFamily: FONT_REGULAR,
-}
+})
 
 export const TYPE_ICONS = {
   Swim: 'water-outline',

@@ -3,10 +3,9 @@ import * as WebBrowser from 'expo-web-browser'
 import * as Linking from 'expo-linking'
 import { daysBetween } from '../training/trainingUtils'
 
-// Set in .env.local (see .env.example). Expo inlines EXPO_PUBLIC_* vars into the bundle,
-// so the secret ships with the app: fine for a personal build, never deploy it publicly.
-const CLIENT_ID = process.env.EXPO_PUBLIC_STRAVA_CLIENT_ID
-const CLIENT_SECRET = process.env.EXPO_PUBLIC_STRAVA_CLIENT_SECRET
+// Each user registers their own Strava API app and enters its keys in Settings; they are
+// stored only on that device and passed in here as `keys` ({ clientId, clientSecret }).
+// Nothing is baked into the build, so anyone can run their own TriSync instance.
 
 const API = 'https://www.strava.com/api/v3'
 const SCOPE = 'activity:read_all,activity:write'
@@ -23,13 +22,13 @@ const SPORT_TYPES = {
   Strength: ['WeightTraining', 'Workout', 'Crossfit'],
 }
 
-export const isStravaConfigured = () => !!(CLIENT_ID && CLIENT_SECRET)
+export const hasKeys = (keys) => !!(keys?.clientId && keys?.clientSecret)
 
 export const canSyncType = (type) => !!SPORT_TYPES[type]
 
-function authorizeUrl(base, redirectUri) {
+function authorizeUrl(keys, base, redirectUri) {
   const params = new URLSearchParams({
-    client_id: CLIENT_ID,
+    client_id: keys.clientId,
     redirect_uri: redirectUri,
     response_type: 'code',
     approval_prompt: 'auto',
@@ -40,13 +39,17 @@ function authorizeUrl(base, redirectUri) {
 
 // Form-encoded on purpose: Strava's token endpoint doesn't answer CORS preflights,
 // so a JSON body would be blocked in the browser.
-async function requestToken(params) {
+async function requestToken(keys, params) {
   const res = await fetch('https://www.strava.com/oauth/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ client_id: CLIENT_ID, client_secret: CLIENT_SECRET, ...params }).toString(),
+    body: new URLSearchParams({ client_id: keys.clientId, client_secret: keys.clientSecret, ...params }).toString(),
   })
-  if (!res.ok) throw new Error(`Strava login failed (${res.status}).`)
+  if (!res.ok) {
+    throw new Error(res.status === 401
+      ? 'Strava rejected the Client ID or Secret. Check them in Settings → Strava.'
+      : `Strava login failed (${res.status}).`)
+  }
   const data = await res.json()
   return {
     accessToken: data.access_token,
@@ -56,26 +59,31 @@ async function requestToken(params) {
   }
 }
 
-export async function exchangeCode({ code, scope, error }) {
+export async function exchangeCode(keys, { code, scope, error }) {
   if (error) throw new Error('Strava access was not granted.')
   const granted = (scope || '').split(',')
   if (!granted.includes('activity:write') || !granted.includes('activity:read_all')) {
     throw new Error('TriSync needs permission to view and edit your activities. Connect again and leave both boxes ticked.')
   }
-  return requestToken({ code, grant_type: 'authorization_code' })
+  return requestToken(keys, { code, grant_type: 'authorization_code' })
 }
 
-export async function refreshSession(session) {
-  const fresh = await requestToken({ refresh_token: session.refreshToken, grant_type: 'refresh_token' })
+export async function refreshSession(keys, session) {
+  const fresh = await requestToken(keys, { refresh_token: session.refreshToken, grant_type: 'refresh_token' })
   return { ...session, ...fresh, athleteName: fresh.athleteName || session.athleteName }
 }
 
 export const isExpired = (session) => session.expiresAt * 1000 < Date.now() + 60 * 1000
 
+// The host Strava must allow as "Authorization Callback Domain" for this instance
+export const callbackDomain = () => (Platform.OS === 'web'
+  ? window.location.hostname
+  : Linking.parse(Linking.createURL('strava-auth')).hostname)
+
 // Web: full-page redirect to Strava, which sends the browser back here with ?code=...
-export function startWebLogin() {
+export function startWebLogin(keys) {
   const redirectUri = window.location.origin + window.location.pathname
-  window.location.assign(authorizeUrl('https://www.strava.com/oauth/authorize', redirectUri))
+  window.location.assign(authorizeUrl(keys, 'https://www.strava.com/oauth/authorize', redirectUri))
 }
 
 // Web: reads (and clears from the address bar) the code Strava redirected back with
@@ -90,10 +98,10 @@ export function takeWebRedirect() {
 }
 
 // Native: in-app browser session that returns to the app's trisync:// scheme
-export async function nativeLogin() {
+export async function nativeLogin(keys) {
   const redirectUri = Linking.createURL('strava-auth')
   const result = await WebBrowser.openAuthSessionAsync(
-    authorizeUrl('https://www.strava.com/oauth/mobile/authorize', redirectUri),
+    authorizeUrl(keys, 'https://www.strava.com/oauth/mobile/authorize', redirectUri),
     redirectUri,
   )
   if (result.type !== 'success') return null

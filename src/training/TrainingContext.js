@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import { View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
-  todayStr, displayToIso, isValidCalendarDate, daysBetween, subtractDays, makeId, BG,
+  todayStr, displayToIso, isValidCalendarDate, daysBetween, subtractDays, makeId,
 } from './trainingUtils'
 
 const STORAGE_KEY = 'trisync/training/v1'
@@ -15,6 +15,8 @@ export function TrainingProvider({ children }) {
 
   const [planRange, setPlanRange] = useState(null) // { start, raceDate, raceName, weeks }
   const [workouts, setWorkouts] = useState([])
+  // True while the setup form is open for an existing plan; the plan stays until saved
+  const [editingPlan, setEditingPlan] = useState(false)
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
@@ -53,15 +55,20 @@ export function TrainingProvider({ children }) {
       return { error: 'Enter a valid number of training weeks (1 or more).' }
     }
 
+    // New plans can't start in the past. An edited plan that has already begun keeps
+    // its original start rather than jumping to today.
+    const earliestStart = planRange && planRange.start < today ? planRange.start : today
     const idealStart = subtractDays(raceIso, weeks * 7 - 1)
-    const start = idealStart < today ? today : idealStart
+    const start = idealStart < earliestStart ? earliestStart : idealStart
 
     setPlanRange({ start, raceDate: raceIso, raceName: raceNameInput.trim(), weeks })
+    setEditingPlan(false)
 
     return { start }
   }
 
-  const editPlanLength = () => setPlanRange(null)
+  const startEditingPlan = () => setEditingPlan(true)
+  const cancelEditingPlan = () => setEditingPlan(false)
 
   const addWorkout = ({ date, type, title, notes }) => {
     setWorkouts((prev) => [
@@ -89,14 +96,16 @@ export function TrainingProvider({ children }) {
     today,
     planRange,
     createPlan,
-    editPlanLength,
+    editingPlan,
+    startEditingPlan,
+    cancelEditingPlan,
     workouts,
     addWorkout,
     updateWorkout,
     deleteWorkout,
   }
 
-  if (!loaded) return <View style={{ flex: 1, backgroundColor: BG }} />
+  if (!loaded) return <View style={{ flex: 1 }} />
 
   return <TrainingContext.Provider value={value}>{children}</TrainingContext.Provider>
 }

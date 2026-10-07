@@ -4,22 +4,23 @@ import { Popover } from '@tamagui/popover'
 import { Pressable, Text, TextInput, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import {
-  TYPE_LIST, TYPE_ICONS, STATUS_COLORS, statusFor,
-  TEXT, SUBTLE, BORDER, SURFACE, SURFACE_RAISED,
+  TYPE_LIST, TYPE_ICONS, statusFor,
   FONT_REGULAR, FONT_SEMIBOLD, FONT_BOLD,
-  ACCENT_PRIMARY, notesInputStyle,
+  notesInputStyle,
 } from './trainingUtils'
+import { useTheme } from '../theme/ThemeContext'
 import { useStrava } from '../strava/StravaContext'
 import { useTraining } from './TrainingContext'
 import ActivityGraphicModal from '../strava/ActivityGraphicModal'
 
 export function Pill({ label, active, color, onPress, variant = 'default' }) {
+  const t = useTheme()
   const isDanger = variant === 'danger'
   const isPrimary = variant === 'primary'
 
-  const bg = isPrimary ? ACCENT_PRIMARY : active ? (color || ACCENT_PRIMARY) : SURFACE
-  const textColor = isPrimary || active ? '#0b1220' : isDanger ? '#f87171' : TEXT
-  const borderColor = isDanger ? '#5b1d1d' : active || isPrimary ? (color || ACCENT_PRIMARY) : BORDER
+  const bg = isPrimary || active ? (color || t.primary) : t.surface
+  const textColor = isPrimary || active ? t.onAccent : isDanger ? t.danger : t.text
+  const borderColor = isDanger ? t.dangerBorder : active || isPrimary ? (color || t.primary) : t.border
 
   return (
     <Pressable
@@ -59,6 +60,7 @@ function TypeIcon({ type, color }) {
 }
 
 function RowMenu({ onEdit, onDelete }) {
+  const t = useTheme()
   const [open, setOpen] = useState(false)
 
   return (
@@ -69,14 +71,14 @@ function RowMenu({ onEdit, onDelete }) {
           style={{ padding: 6 }}
           accessibilityLabel="Workout options"
         >
-          <Ionicons name="ellipsis-vertical" size={18} color={SUBTLE} />
+          <Ionicons name="ellipsis-vertical" size={18} color={t.subtle} />
         </Pressable>
       </Popover.Trigger>
 
       <Popover.Content
         borderWidth={1}
-        borderColor={BORDER}
-        backgroundColor={SURFACE_RAISED}
+        borderColor={t.border}
+        backgroundColor={t.surfaceSolid}
         borderRadius={14}
         padding="$2"
         elevate
@@ -86,13 +88,13 @@ function RowMenu({ onEdit, onDelete }) {
             onPress={() => { setOpen(false); onEdit() }}
             style={{ paddingVertical: 10, paddingHorizontal: 10 }}
           >
-            <Text style={{ fontFamily: FONT_SEMIBOLD, fontSize: 14, color: TEXT }}>Edit</Text>
+            <Text style={{ fontFamily: FONT_SEMIBOLD, fontSize: 14, color: t.text }}>Edit</Text>
           </Pressable>
           <Pressable
             onPress={() => { setOpen(false); onDelete() }}
             style={{ paddingVertical: 10, paddingHorizontal: 10 }}
           >
-            <Text style={{ fontFamily: FONT_SEMIBOLD, fontSize: 14, color: '#f87171' }}>Delete</Text>
+            <Text style={{ fontFamily: FONT_SEMIBOLD, fontSize: 14, color: t.danger }}>Delete</Text>
           </Pressable>
         </YStack>
       </Popover.Content>
@@ -100,9 +102,12 @@ function RowMenu({ onEdit, onDelete }) {
   )
 }
 
-const smallText = { fontFamily: FONT_REGULAR, fontSize: 12.5, lineHeight: 18, color: SUBTLE }
+const smallTextStyle = (t) => ({ fontFamily: FONT_REGULAR, fontSize: 12.5, lineHeight: 18, color: t.subtle })
 
 function StravaSync({ workout, sync, onRun, onCancel, onShowGraphic }) {
+  const t = useTheme()
+  const smallText = smallTextStyle(t)
+
   if (sync?.state === 'syncing') {
     return <Text style={smallText}>Updating Strava…</Text>
   }
@@ -130,7 +135,7 @@ function StravaSync({ workout, sync, onRun, onCancel, onShowGraphic }) {
       ? 'No Strava activity on this day yet. Retry once your watch has uploaded.'
       : sync.message
     return (
-      <XStack gap="$2" ai="center" flexWrap="wrap">
+      <XStack gap="$2" alignItems="center" flexWrap="wrap">
         <Text style={{ ...smallText, flexShrink: 1 }}>{message}</Text>
         <Pill label="Retry" onPress={() => onRun()} />
       </XStack>
@@ -139,7 +144,7 @@ function StravaSync({ workout, sync, onRun, onCancel, onShowGraphic }) {
 
   if (workout.stravaActivityId) {
     return (
-      <XStack gap="$2" ai="center" flexWrap="wrap">
+      <XStack gap="$2" alignItems="center" flexWrap="wrap">
         <Text style={{ ...smallText, flexShrink: 1 }}>Strava: {workout.stravaActivityName}</Text>
         {workout.status !== 'pending' && <Pill label="Sync again" onPress={() => onRun()} />}
         <Pill label="Graphic" onPress={onShowGraphic} />
@@ -151,6 +156,7 @@ function StravaSync({ workout, sync, onRun, onCancel, onShowGraphic }) {
 }
 
 export function WorkoutRow({ workout, today, onUpdate, onDelete }) {
+  const t = useTheme()
   const [isEditing, setIsEditing] = useState(false)
   const [editType, setEditType] = useState(workout.type)
   const [editTitle, setEditTitle] = useState(workout.title)
@@ -162,7 +168,7 @@ export function WorkoutRow({ workout, today, onUpdate, onDelete }) {
   const [sync, setSync] = useState(null) // { state: 'syncing' | 'none' | 'choose' | 'error', activities, message }
 
   const status = statusFor(workout, today)
-  const statusColor = STATUS_COLORS[status]
+  const statusColor = t.status[status]
 
   const runSync = async (target, activityId) => {
     setSync({ state: 'syncing' })
@@ -203,7 +209,7 @@ export function WorkoutRow({ workout, today, onUpdate, onDelete }) {
 
   if (isEditing) {
     return (
-      <YStack borderWidth={1} borderColor={BORDER} borderRadius={16} backgroundColor={SURFACE_RAISED} p="$3" gap="$2">
+      <YStack borderWidth={1} borderColor={t.border} borderRadius={16} backgroundColor={t.surfaceRaised} p="$3" gap="$2">
         <XStack gap="$2" flexWrap="wrap">
           {TYPE_LIST.map((type) => (
             <Pill key={type} label={type} active={editType === type} onPress={() => setEditType(type)} />
@@ -214,23 +220,23 @@ export function WorkoutRow({ workout, today, onUpdate, onDelete }) {
           placeholder="Title (optional)"
           value={editTitle}
           onChangeText={setEditTitle}
-          borderColor={BORDER}
+          borderColor={t.border}
           borderRadius={10}
-          backgroundColor={SURFACE}
-          color={TEXT}
+          backgroundColor={t.surface}
+          color={t.text}
           fontFamily={FONT_REGULAR}
-          placeholderTextColor={SUBTLE}
+          placeholderTextColor={t.subtle}
         />
 
         <TextInput
           placeholder="Notes"
-          placeholderTextColor={SUBTLE}
+          placeholderTextColor={t.subtle}
           value={editNotes}
           onChangeText={setEditNotes}
           multiline
           numberOfLines={3}
           textAlignVertical="top"
-          style={{ ...notesInputStyle, backgroundColor: SURFACE }}
+          style={{ ...notesInputStyle(t), backgroundColor: t.surface }}
         />
 
         <XStack gap="$2">
@@ -242,12 +248,12 @@ export function WorkoutRow({ workout, today, onUpdate, onDelete }) {
   }
 
   return (
-    <YStack borderWidth={1} borderColor={BORDER} borderRadius={16} backgroundColor={SURFACE} p="$3" gap="$3">
-      <XStack ai="flex-start" jc="space-between" gap="$2">
-        <XStack f={1} minWidth={0} gap="$3" ai="flex-start">
+    <YStack borderWidth={1} borderColor={t.border} borderRadius={16} backgroundColor={t.surface} p="$3" gap="$3">
+      <XStack alignItems="flex-start" justifyContent="space-between" gap="$2">
+        <XStack flex={1} minWidth={0} gap="$3" alignItems="flex-start">
           <TypeIcon type={workout.type} color={statusColor} />
-          <YStack f={1} minWidth={0} flexShrink={1} gap="$0.5" pt="$1">
-            <Text style={{ fontFamily: FONT_BOLD, fontSize: 14.5, color: TEXT }}>
+          <YStack flex={1} minWidth={0} flexShrink={1} gap="$0.5" pt="$1">
+            <Text style={{ fontFamily: FONT_BOLD, fontSize: 14.5, color: t.text }}>
               {workout.title ? `${workout.type}: ${workout.title}` : workout.type}
             </Text>
             {!!workout.notes && (
@@ -256,7 +262,7 @@ export function WorkoutRow({ workout, today, onUpdate, onDelete }) {
                   fontFamily: FONT_REGULAR,
                   fontSize: 13,
                   lineHeight: 19,
-                  color: SUBTLE,
+                  color: t.subtle,
                   whiteSpace: 'pre-wrap',
                 }}
               >
@@ -272,9 +278,9 @@ export function WorkoutRow({ workout, today, onUpdate, onDelete }) {
       </XStack>
 
       <XStack gap="$2">
-        <Pill label="Not done" active={workout.status === 'pending'} color={STATUS_COLORS.upcoming} onPress={() => setStatus('pending')} />
-        <Pill label="Partial" active={workout.status === 'partial'} color={STATUS_COLORS.partial} onPress={() => setStatus('partial')} />
-        <Pill label="Done" active={workout.status === 'done'} color={STATUS_COLORS.done} onPress={() => setStatus('done')} />
+        <Pill label="Not done" active={workout.status === 'pending'} color={t.status.upcoming} onPress={() => setStatus('pending')} />
+        <Pill label="Partial" active={workout.status === 'partial'} color={t.status.partial} onPress={() => setStatus('partial')} />
+        <Pill label="Done" active={workout.status === 'done'} color={t.status.done} onPress={() => setStatus('done')} />
       </XStack>
 
       {strava.canSync(workout) && (
@@ -300,6 +306,7 @@ export function WorkoutRow({ workout, today, onUpdate, onDelete }) {
 }
 
 export function AddWorkoutForm({ onAdd }) {
+  const t = useTheme()
   const [newType, setNewType] = useState(TYPE_LIST[2] || TYPE_LIST[0])
   const [newTitle, setNewTitle] = useState('')
   const [newNotes, setNewNotes] = useState('')
@@ -311,14 +318,14 @@ export function AddWorkoutForm({ onAdd }) {
   }
 
   return (
-    <YStack borderTopWidth={1} borderColor={BORDER} pt="$3" gap="$2">
-      <Paragraph fontFamily={FONT_BOLD} fontSize={11} letterSpacing={1} color={SUBTLE} textTransform="uppercase">
+    <YStack borderTopWidth={1} borderColor={t.border} pt="$3" gap="$2">
+      <Paragraph fontFamily={FONT_BOLD} fontSize={11} letterSpacing={1} color={t.subtle} textTransform="uppercase">
         Add a workout
       </Paragraph>
 
       <XStack gap="$2" flexWrap="wrap">
         {TYPE_LIST.map((type) => (
-          <Pill key={type} label={type} active={newType === type} onPress={() => setNewType(type)} />
+          <Pill key={type} label={type} active={newType === type} color={t.secondary} onPress={() => setNewType(type)} />
         ))}
       </XStack>
 
@@ -326,26 +333,26 @@ export function AddWorkoutForm({ onAdd }) {
         placeholder="Title (optional)"
         value={newTitle}
         onChangeText={setNewTitle}
-        borderColor={BORDER}
+        borderColor={t.border}
         borderRadius={10}
-        backgroundColor={SURFACE_RAISED}
-        color={TEXT}
+        backgroundColor={t.surfaceRaised}
+        color={t.text}
         fontFamily={FONT_REGULAR}
-        placeholderTextColor={SUBTLE}
+        placeholderTextColor={t.subtle}
       />
 
       <TextInput
         placeholder="Notes (e.g. 5km @ tempo pace, how it felt, etc.)"
-        placeholderTextColor={SUBTLE}
+        placeholderTextColor={t.subtle}
         value={newNotes}
         onChangeText={setNewNotes}
         multiline
         numberOfLines={3}
         textAlignVertical="top"
-        style={notesInputStyle}
+        style={notesInputStyle(t)}
       />
 
-      <Pill label="Add Workout" variant="primary" onPress={handleAdd} />
+      <Pill label="Add Workout" variant="primary" color={t.secondary} onPress={handleAdd} />
     </YStack>
   )
 }

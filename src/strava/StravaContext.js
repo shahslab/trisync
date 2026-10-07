@@ -2,12 +2,14 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { Alert, Platform } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
-  isStravaConfigured, canSyncType, exchangeCode, refreshSession, isExpired,
+  hasKeys, callbackDomain, canSyncType, exchangeCode, refreshSession, isExpired,
   startWebLogin, takeWebRedirect, nativeLogin,
   activitiesOnDate, matchingActivities, applyWorkoutToActivity, getActivity,
 } from './stravaApi'
 
 const STORAGE_KEY = 'trisync/strava/v1'
+// This user's own Strava API app ({ clientId, clientSecret }), entered in Settings
+const KEYS_STORAGE_KEY = 'trisync/strava-keys/v1'
 const LEGACY_STORAGE_KEY = 'oneplan/strava/v1'
 
 const StravaContext = createContext(null)
@@ -20,6 +22,8 @@ export function notify(message) {
 export function StravaProvider({ children }) {
   const [session, setSession] = useState(null) // { accessToken, refreshToken, expiresAt, athleteName }
   const sessionRef = useRef(null)
+  const [keys, setKeys] = useState(null)
+  const keysRef = useRef(null)
 
   const saveSession = async (next) => {
     sessionRef.current = next
@@ -28,9 +32,20 @@ export function StravaProvider({ children }) {
     else await AsyncStorage.removeItem(STORAGE_KEY)
   }
 
+  const saveKeys = async (next) => {
+    const cleaned = next && { clientId: next.clientId.trim(), clientSecret: next.clientSecret.trim() }
+    const changed = cleaned?.clientId !== keysRef.current?.clientId || cleaned?.clientSecret !== keysRef.current?.clientSecret
+    keysRef.current = hasKeys(cleaned) ? cleaned : null
+    setKeys(keysRef.current)
+    if (keysRef.current) await AsyncStorage.setItem(KEYS_STORAGE_KEY, JSON.stringify(keysRef.current))
+    else await AsyncStorage.removeItem(KEYS_STORAGE_KEY)
+    // A login belongs to the Strava app that issued it
+    if (changed) await saveSession(null)
+  }
+
   const finishLogin = async (redirect) => {
     try {
-      await saveSession(await exchangeCode(redirect))
+      await saveSession(await exchangeCode(keysRef.current, redirect))
     } catch (e) {
       notify(e.message)
     }
@@ -38,6 +53,11 @@ export function StravaProvider({ children }) {
 
   useEffect(() => {
     (async () => {
+      const storedKeys = await AsyncStorage.getItem(KEYS_STORAGE_KEY)
+      if (storedKeys) {
+        keysRef.current = JSON.parse(storedKeys)
+        setKeys(keysRef.current)
+      }
       const stored = await AsyncStorage.getItem(STORAGE_KEY)
       const legacy = stored ? null : await AsyncStorage.getItem(LEGACY_STORAGE_KEY)
       if (stored) {
@@ -55,15 +75,15 @@ export function StravaProvider({ children }) {
   }, [])
 
   const connect = async () => {
-    if (!isStravaConfigured()) {
-      notify('Strava isn\'t set up yet. Add your Strava API Client ID and secret to .env.local, then restart the dev server.')
+    if (!keysRef.current) {
+      notify('Add your Strava API Client ID and Secret in Settings → Strava first.')
       return
     }
     if (Platform.OS === 'web') {
-      startWebLogin()
+      startWebLogin(keysRef.current)
       return
     }
-    const redirect = await nativeLogin()
+    const redirect = await nativeLogin(keysRef.current)
     if (redirect) await finishLogin(redirect)
   }
 
@@ -72,8 +92,9 @@ export function StravaProvider({ children }) {
   const accessToken = async () => {
     let current = sessionRef.current
     if (!current) throw new Error('Connect Strava first.')
+    if (!keysRef.current) throw new Error('Add your Strava API keys in Settings → Strava.')
     if (isExpired(current)) {
-      current = await refreshSession(current)
+      current = await refreshSession(keysRef.current, current)
       await saveSession(current)
     }
     return current.accessToken
@@ -100,6 +121,10 @@ export function StravaProvider({ children }) {
   }
 
   const value = {
+    keys,
+    hasKeys: !!keys,
+    saveKeys,
+    callbackDomain: callbackDomain(),
     connected: !!session,
     athleteName: session?.athleteName,
     connect,

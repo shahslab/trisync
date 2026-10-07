@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { YStack, XStack, Card, Paragraph, Input } from 'tamagui'
 import { Pressable, Text, ScrollView } from 'react-native'
 import { Calendar, LocaleConfig } from 'react-native-calendars'
@@ -6,11 +6,10 @@ import { Calendar, LocaleConfig } from 'react-native-calendars'
 import { useTraining } from '../training/TrainingContext'
 import { Pill, WorkoutRow, AddWorkoutForm } from '../training/WorkoutRow'
 import {
-  isoToDisplay, formatLongDate, formatOrdinalDate, daysBetween, subtractDays, STATUS_COLORS, RACE_COLOR,
-  BG, TEXT, SUBTLE, BORDER, SURFACE, SURFACE_RAISED, CARD_SHADOW,
+  isoToDisplay, formatLongDate, formatOrdinalDate, daysBetween, subtractDays,
   FONT_REGULAR, FONT_SEMIBOLD, FONT_BOLD, FONT_EXTRABOLD,
-  ACCENT_TEAL, ACCENT_PRIMARY,
 } from '../training/trainingUtils'
+import { useTheme } from '../theme/ThemeContext'
 
 LocaleConfig.locales['en'] = {
   monthNames: [
@@ -26,31 +25,33 @@ LocaleConfig.defaultLocale = 'en'
 const CALENDAR_DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 function WeekdayRow() {
+  const t = useTheme()
   return (
-    <XStack jc="space-between" px="$0.5" mb="$1">
+    <XStack justifyContent="space-between" px="$0.5" mb="$1">
       {CALENDAR_DAY_LABELS.map((label) => (
-        <YStack key={label} width={32} ai="center">
-          <Text style={{ fontFamily: FONT_SEMIBOLD, fontSize: 11, color: SUBTLE }}>{label}</Text>
+        <YStack key={label} width={32} alignItems="center">
+          <Text style={{ fontFamily: FONT_SEMIBOLD, fontSize: 11, color: t.subtle }}>{label}</Text>
         </YStack>
       ))}
     </XStack>
   )
 }
 
-const calendarTheme = {
+const calendarThemeFor = (t) => ({
   backgroundColor: 'transparent',
   calendarBackground: 'transparent',
   textSectionTitleColor: 'transparent',
-  monthTextColor: TEXT,
-  arrowColor: TEXT,
+  monthTextColor: t.text,
+  arrowColor: t.text,
   textMonthFontFamily: FONT_EXTRABOLD,
   textMonthFontSize: 16,
-}
+})
 
 // Custom circular day badge — priority order for "worst" status wins the ring color
 const STATUS_PRIORITY = { missed: 0, partial: 1, upcoming: 2, done: 3 }
 
 function DayCell({ date, state, marking, onPress }) {
+  const t = useTheme()
   if (!date) return null
   const isDisabled = state === 'disabled'
   const isSelected = !!marking?.selected
@@ -59,27 +60,27 @@ function DayCell({ date, state, marking, onPress }) {
   const isInPlan = !!marking?.inPlan
   const count = marking?.count || 0
 
-  const ringColor = isRace ? RACE_COLOR : status ? STATUS_COLORS[status] : null
+  const ringColor = isRace ? t.race : status ? t.status[status] : null
   const isFilled = status === 'done' || isRace
 
   let circleBg = 'transparent'
   let hasBorder = false
   let borderColor = 'transparent'
-  let textColor = isDisabled ? '#334155' : TEXT
+  let textColor = isDisabled ? t.disabled : t.text
 
   if (isSelected) {
-    circleBg = TEXT
-    textColor = BG
+    circleBg = t.text
+    textColor = t.bgSolid
   } else if (isFilled && ringColor) {
     circleBg = ringColor
-    textColor = '#0b1220'
+    textColor = t.onAccent
   } else if (ringColor) {
     hasBorder = true
     borderColor = ringColor
   } else if (isInPlan) {
     // Bare plan day — no status yet, not selected: show a plan-colored ring instead of a fill
     hasBorder = true
-    borderColor = ACCENT_PRIMARY
+    borderColor = t.planRing
   }
 
   // Tint only applies when nothing else (status ring/fill, selection) is already showing
@@ -98,8 +99,8 @@ function DayCell({ date, state, marking, onPress }) {
       <YStack
         width={32}
         height={32}
-        ai="center"
-        jc="center"
+        alignItems="center"
+        justifyContent="center"
         style={{ position: 'relative' }}
       >
         <YStack
@@ -113,8 +114,6 @@ function DayCell({ date, state, marking, onPress }) {
             backgroundColor: circleBg,
             borderWidth: hasBorder ? 2 : 0,
             borderColor,
-            transform: isSelected ? [{ translateY: -5 }] : undefined,
-            boxShadow: isSelected ? '0 4px 10px rgba(0,0,0,0.4)' : undefined,
           }}
         />
         <Text style={{ fontFamily: FONT_BOLD, fontSize: 13, color: textColor, textAlign: 'center' }}>
@@ -123,15 +122,17 @@ function DayCell({ date, state, marking, onPress }) {
       </YStack>
 
       {count > 1 && (
-        <YStack mt="$0.5" width={4} height={4} borderRadius={2} backgroundColor={ringColor || SUBTLE} />
+        <YStack mt="$0.5" width={4} height={4} borderRadius={2} backgroundColor={ringColor || t.subtle} />
       )}
     </Pressable>
   )
 }
 
 export default function TrainingCalendarScreen({ navigation }) {
+  const t = useTheme()
+  const calendarTheme = useMemo(() => calendarThemeFor(t), [t])
   const {
-    today, planRange, createPlan, editPlanLength,
+    today, planRange, createPlan, editingPlan, cancelEditingPlan,
     workouts, addWorkout, updateWorkout, deleteWorkout,
   } = useTraining()
 
@@ -142,6 +143,15 @@ export default function TrainingCalendarScreen({ navigation }) {
 
   const [selectedDate, setSelectedDate] = useState(today)
 
+  // Editing an existing plan: start the form from its current values
+  useEffect(() => {
+    if (!editingPlan || !planRange) return
+    setRaceNameInput(planRange.raceName || '')
+    setRaceDateInput(isoToDisplay(planRange.raceDate))
+    setWeeksInput(String(planRange.weeks))
+    setSetupError('')
+  }, [editingPlan])
+
   const handleCreatePlan = () => {
     const result = createPlan({ raceNameInput, raceDateInput, weeksInput })
     if (result?.error) {
@@ -149,7 +159,7 @@ export default function TrainingCalendarScreen({ navigation }) {
       return
     }
     setSetupError('')
-    setSelectedDate(result.start)
+    if (!editingPlan) setSelectedDate(result.start)
   }
 
   const daysToRace = planRange ? daysBetween(today, planRange.raceDate) : null
@@ -186,38 +196,41 @@ export default function TrainingCalendarScreen({ navigation }) {
   const dayWorkouts = workouts.filter((w) => w.date === selectedDate)
   const isRaceDay = planRange && selectedDate === planRange.raceDate
 
-  if (!planRange) {
+  if (!planRange || editingPlan) {
     return (
       <ScrollView
-        style={{ flex: 1, backgroundColor: BG }}
+        style={{ flex: 1, backgroundColor: t.bg }}
         contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}
       >
         <YStack gap="$1">
-          <Paragraph fontFamily={FONT_BOLD} fontSize={11} letterSpacing={2} color={SUBTLE} textTransform="uppercase">
+          <Paragraph fontFamily={FONT_BOLD} fontSize={11} letterSpacing={2} color={t.subtle} textTransform="uppercase">
             Training Plan
           </Paragraph>
-          <Text style={{ fontFamily: FONT_EXTRABOLD, fontSize: 28, color: TEXT }}>Set Up Your Race</Text>
+          <Text style={{ fontFamily: FONT_EXTRABOLD, fontSize: 28, color: t.text }}>{editingPlan ? 'Edit Your Plan' : 'Set Up Your Race'}</Text>
         </YStack>
 
-        <Card backgroundColor={SURFACE} borderColor={BORDER} borderWidth={1} borderRadius={20} p="$5" gap="$4" style={CARD_SHADOW}>
+        <Card backgroundColor={t.surface} borderColor={t.border} borderWidth={1} borderRadius={20} p="$5" gap="$4" style={t.cardShadow}>
           <YStack gap="$2">
-            <Paragraph fontFamily={FONT_SEMIBOLD} fontSize={11} letterSpacing={0.6} color={SUBTLE} textTransform="uppercase">Race name</Paragraph>
-            <Input value={raceNameInput} onChangeText={setRaceNameInput} placeholder="e.g. Ironman 70.3 Oceanside" placeholderTextColor={SUBTLE} borderColor={BORDER} borderRadius={12} backgroundColor={SURFACE_RAISED} color={TEXT} fontFamily={FONT_REGULAR} />
+            <Paragraph fontFamily={FONT_SEMIBOLD} fontSize={11} letterSpacing={0.6} color={t.subtle} textTransform="uppercase">Race name</Paragraph>
+            <Input value={raceNameInput} onChangeText={setRaceNameInput} placeholder="e.g. Ironman 70.3 Oceanside" placeholderTextColor={t.subtle} borderColor={t.border} borderRadius={12} backgroundColor={t.surfaceRaised} color={t.text} fontFamily={FONT_REGULAR} />
           </YStack>
 
           <YStack gap="$2">
-            <Paragraph fontFamily={FONT_SEMIBOLD} fontSize={11} letterSpacing={0.6} color={SUBTLE} textTransform="uppercase">Race date (DD-MM-YYYY)</Paragraph>
-            <Input value={raceDateInput} onChangeText={setRaceDateInput} placeholder="06-12-2026" placeholderTextColor={SUBTLE} borderColor={BORDER} borderRadius={12} backgroundColor={SURFACE_RAISED} color={TEXT} fontFamily={FONT_REGULAR} />
+            <Paragraph fontFamily={FONT_SEMIBOLD} fontSize={11} letterSpacing={0.6} color={t.subtle} textTransform="uppercase">Race date (DD-MM-YYYY)</Paragraph>
+            <Input value={raceDateInput} onChangeText={setRaceDateInput} placeholder="06-12-2026" placeholderTextColor={t.subtle} borderColor={t.border} borderRadius={12} backgroundColor={t.surfaceRaised} color={t.text} fontFamily={FONT_REGULAR} />
           </YStack>
 
           <YStack gap="$2">
-            <Paragraph fontFamily={FONT_SEMIBOLD} fontSize={11} letterSpacing={0.6} color={SUBTLE} textTransform="uppercase">Training weeks</Paragraph>
-            <Input value={weeksInput} onChangeText={setWeeksInput} keyboardType="numeric" placeholder="12" placeholderTextColor={SUBTLE} borderColor={BORDER} borderRadius={12} backgroundColor={SURFACE_RAISED} color={TEXT} fontFamily={FONT_REGULAR} />
+            <Paragraph fontFamily={FONT_SEMIBOLD} fontSize={11} letterSpacing={0.6} color={t.subtle} textTransform="uppercase">Training weeks</Paragraph>
+            <Input value={weeksInput} onChangeText={setWeeksInput} keyboardType="numeric" placeholder="12" placeholderTextColor={t.subtle} borderColor={t.border} borderRadius={12} backgroundColor={t.surfaceRaised} color={t.text} fontFamily={FONT_REGULAR} />
           </YStack>
 
-          {!!setupError && <Paragraph fontFamily={FONT_REGULAR} color="#f87171" fontSize={13}>{setupError}</Paragraph>}
+          {!!setupError && <Paragraph fontFamily={FONT_REGULAR} color={t.danger} fontSize={13}>{setupError}</Paragraph>}
 
-          <Pill label="Create Plan" variant="primary" onPress={handleCreatePlan} />
+          <XStack gap="$2">
+            <Pill label={editingPlan ? 'Save Plan' : 'Create Plan'} variant="primary" onPress={handleCreatePlan} />
+            {editingPlan && <Pill label="Cancel" onPress={cancelEditingPlan} />}
+          </XStack>
         </Card>
       </ScrollView>
     )
@@ -225,23 +238,25 @@ export default function TrainingCalendarScreen({ navigation }) {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: BG }}
+      style={{ flex: 1, backgroundColor: t.bg }}
       contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}
     >
       <YStack gap="$0.5">
-        <Paragraph fontFamily={FONT_BOLD} fontSize={11} letterSpacing={2} color={SUBTLE} textTransform="uppercase">
+        <Paragraph fontFamily={FONT_BOLD} fontSize={11} letterSpacing={2} color={t.subtle} textTransform="uppercase">
           Training Plan
         </Paragraph>
-        <Text style={{ fontFamily: FONT_EXTRABOLD, fontSize: 24, color: TEXT }}>
+        <Text style={{ fontFamily: FONT_EXTRABOLD, fontSize: 24, color: t.text }}>
           {planRange.raceName || 'Race Plan'}
         </Text>
       </YStack>
 
-      <Card backgroundColor={SURFACE} borderColor={BORDER} borderWidth={1} borderRadius={20} p="$4" gap="$1" style={CARD_SHADOW}>
-        <Paragraph fontFamily={FONT_REGULAR} color={SUBTLE} fontSize={13}>
-          {planRange.weeks} - Week Plan · Start: {formatOrdinalDate(planRange.start)} · Race Day: {formatOrdinalDate(planRange.raceDate)}
-        </Paragraph>
-        <Text style={{ fontFamily: FONT_EXTRABOLD, fontSize: 20, color: daysToRace < 0 ? STATUS_COLORS.done : ACCENT_TEAL }}>
+      <Card backgroundColor={t.surface} borderColor={t.border} borderWidth={1} borderRadius={20} p="$4" gap="$1" style={t.cardShadow}>
+        <YStack>
+          <Paragraph fontFamily={FONT_REGULAR} color={t.subtle} fontSize={13}>{planRange.weeks} - Week Plan</Paragraph>
+          <Paragraph fontFamily={FONT_REGULAR} color={t.subtle} fontSize={13}>Start: {formatOrdinalDate(planRange.start)}</Paragraph>
+          <Paragraph fontFamily={FONT_REGULAR} color={t.subtle} fontSize={13}>Race Day: {formatOrdinalDate(planRange.raceDate)}</Paragraph>
+        </YStack>
+        <Text style={{ fontFamily: FONT_EXTRABOLD, fontSize: 20, color: daysToRace < 0 ? t.status.done : t.primary }}>
           {daysToRace > 0
             ? `${daysToRace} day${daysToRace === 1 ? '' : 's'} to race day`
             : daysToRace === 0
@@ -250,32 +265,33 @@ export default function TrainingCalendarScreen({ navigation }) {
         </Text>
       </Card>
 
-      <Card backgroundColor={SURFACE} borderColor={BORDER} borderWidth={1} borderRadius={20} p="$3" style={CARD_SHADOW}>
+      <Card backgroundColor={t.surface} borderColor={t.border} borderWidth={1} borderRadius={20} p="$3" style={t.cardShadow}>
         <WeekdayRow />
         <Calendar
           markedDates={markedDates}
           firstDay={1}
+          key={t.name}
           theme={calendarTheme}
           dayComponent={DayCell}
           onDayPress={(day) => setSelectedDate(day.dateString)}
         />
       </Card>
 
-      <XStack gap="$4" ai="center" flexWrap="wrap" px="$1">
-        <LegendDot color={STATUS_COLORS.done} label="Done" />
-        <LegendDot color={STATUS_COLORS.partial} label="Partial" />
-        <LegendDot color={STATUS_COLORS.missed} label="Missed" />
-        <LegendDot color={STATUS_COLORS.upcoming} label="Upcoming" />
-        <LegendDot color={RACE_COLOR} label="Race day" />
+      <XStack gap="$4" alignItems="center" flexWrap="wrap" px="$1">
+        <LegendDot color={t.status.done} label="Done" />
+        <LegendDot color={t.status.partial} label="Partial" />
+        <LegendDot color={t.status.missed} label="Missed" />
+        <LegendDot color={t.status.upcoming} label="Upcoming" />
+        <LegendDot color={t.race} label="Race day" />
       </XStack>
 
-      <Card backgroundColor={SURFACE} borderColor={BORDER} borderWidth={1} borderRadius={20} p="$4" gap="$3" style={CARD_SHADOW}>
-        <Text style={{ fontFamily: FONT_EXTRABOLD, fontSize: 17, color: TEXT }}>
+      <Card backgroundColor={t.surface} borderColor={t.border} borderWidth={1} borderRadius={20} p="$4" gap="$3" style={t.cardShadow}>
+        <Text style={{ fontFamily: FONT_EXTRABOLD, fontSize: 17, color: t.text }}>
           {formatLongDate(selectedDate)} {isRaceDay ? '· Race Day' : ''}
         </Text>
 
         {dayWorkouts.length === 0 ? (
-          <Paragraph fontFamily={FONT_REGULAR} color={SUBTLE} fontSize={13}>No workouts scheduled yet.</Paragraph>
+          <Paragraph fontFamily={FONT_REGULAR} color={t.subtle} fontSize={13}>No workouts scheduled yet.</Paragraph>
         ) : (
           dayWorkouts.map((w) => (
             <WorkoutRow key={w.id} workout={w} today={today} onUpdate={updateWorkout} onDelete={deleteWorkout} />
@@ -289,10 +305,11 @@ export default function TrainingCalendarScreen({ navigation }) {
 }
 
 function LegendDot({ color, label }) {
+  const t = useTheme()
   return (
-    <XStack ai="center" gap="$1.5">
+    <XStack alignItems="center" gap="$1.5">
       <YStack width={8} height={8} borderRadius={4} backgroundColor={color} alignSelf="center" />
-      <Text style={{ fontFamily: FONT_REGULAR, fontSize: 12, color: SUBTLE, lineHeight: 16 }}>
+      <Text style={{ fontFamily: FONT_REGULAR, fontSize: 12, color: t.subtle, lineHeight: 16 }}>
         {label}
       </Text>
     </XStack>
