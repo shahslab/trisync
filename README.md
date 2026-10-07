@@ -9,19 +9,19 @@ Every copy of TriSync is its own private instance:
 
 ## Install on your phone
 
-Open **https://shahshachi1.github.io/trisync/** and add it to your home screen:
+Open **https://shahslab.github.io/trisync/** and add it to your home screen:
 
 - **Android (Chrome):** tap **Install app**, or ⋮ → **Install app**.
 - **iPhone (Safari):** tap **Share** → **Add to Home Screen**.
 
-It opens full-screen like a normal app and updates automatically. Then follow [Connect Strava](#connect-strava), using `shahshachi1.github.io` as the callback domain. On iPhone, the home-screen app keeps its own storage, separate from Safari, so set up Strava from inside the installed app.
+It opens full-screen like a normal app and updates automatically. Then follow [Connect Strava](#connect-strava), using `shahslab.github.io` as the callback domain. On iPhone, the home-screen app keeps its own storage, separate from Safari, so set up Strava from inside the installed app.
 
 ## Run it yourself
 
 You need a current LTS version of [Node.js](https://nodejs.org).
 
 ```bash
-git clone https://github.com/shahshachi1/trisync.git
+git clone https://github.com/shahslab/trisync.git
 cd trisync
 npm install
 npm run web
@@ -34,7 +34,7 @@ Then open http://localhost:8081.
 ## Connect Strava
 
 1. Go to https://www.strava.com/settings/api and create an app. Any name, website and icon will do.
-2. Set **Authorization Callback Domain** to the domain you use TriSync on: `shahshachi1.github.io` for the installed app, or `localhost` when running it yourself. TriSync shows the exact value in Settings.
+2. Set **Authorization Callback Domain** to the domain you use TriSync on: `shahslab.github.io` for the installed app, or `localhost` when running it yourself. TriSync shows the exact value in Settings.
 3. In TriSync, open **☰ → Settings → Strava**, paste the app's **Client ID** and **Client Secret**, and press **Save keys**.
 4. Press **Connect Strava** and approve access. Keep both permission boxes ticked: TriSync needs to view your activities and edit their title and description.
 

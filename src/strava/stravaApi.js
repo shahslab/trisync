@@ -81,7 +81,7 @@ export const isExpired = (session) => session.expiresAt * 1000 < Date.now() + 60
 
 // The host to set as the Strava app's "Authorization Callback Domain": the deployed site.
 // Strava always allows localhost too, so local dev logs in with the same setting.
-export const WEB_CALLBACK_DOMAIN = 'shahshachi1.github.io'
+export const WEB_CALLBACK_DOMAIN = 'shahslab.github.io'
 export const callbackDomain = () => (Platform.OS === 'web'
   ? WEB_CALLBACK_DOMAIN
   : Linking.parse(Linking.createURL('strava-auth')).hostname)
