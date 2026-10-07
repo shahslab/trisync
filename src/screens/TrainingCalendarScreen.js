@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { YStack, XStack, Card, Paragraph, Input } from 'tamagui'
 import { Pressable, Text, ScrollView } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { Calendar, LocaleConfig } from 'react-native-calendars'
 
 import { useTraining } from '../training/TrainingContext'
 import { Pill, WorkoutRow, AddWorkoutForm } from '../training/WorkoutRow'
 import {
-  isoToDisplay, formatLongDate, formatOrdinalDate, daysBetween, subtractDays,
+  isoToDisplay, displayToIso, formatLongDate, formatOrdinalDate, daysBetween, subtractDays,
   FONT_REGULAR, FONT_SEMIBOLD, FONT_BOLD, FONT_EXTRABOLD,
 } from '../training/trainingUtils'
 import { useTheme } from '../theme/ThemeContext'
@@ -128,6 +129,66 @@ function DayCell({ date, state, marking, onPress }) {
   )
 }
 
+// Race date field for the plan form: a button that opens a calendar beneath it.
+// `value` and `onChange` use the form's DD-MM-YYYY text, like the other inputs.
+function RaceDatePicker({ value, onChange, today, calendarTheme }) {
+  const t = useTheme()
+  const [open, setOpen] = useState(false)
+  const iso = value ? displayToIso(value) : null
+  const earliest = subtractDays(today, -1) // the race must be after today
+
+  const pick = (day) => {
+    if (day.dateString < earliest) return // earlier days are greyed out, ignore taps on them
+    onChange(isoToDisplay(day.dateString))
+    setOpen(false)
+  }
+
+  return (
+    <YStack gap="$2">
+      <Pressable
+        onPress={() => setOpen((o) => !o)}
+        accessibilityRole="button"
+        accessibilityLabel={iso ? `Race date, ${formatOrdinalDate(iso)}` : 'Choose race date'}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderWidth: 1,
+          borderColor: open ? t.primary : t.border,
+          borderRadius: 12,
+          backgroundColor: t.surfaceRaised,
+          paddingHorizontal: 14,
+          height: 44,
+        }}
+      >
+        <Text style={{ fontFamily: FONT_REGULAR, fontSize: 15, color: iso ? t.text : t.subtle }}>
+          {iso ? formatOrdinalDate(iso) : 'Choose a date'}
+        </Text>
+        <Ionicons name="calendar-outline" size={18} color={open ? t.primary : t.subtle} />
+      </Pressable>
+
+      {open && (
+        <YStack borderWidth={1} borderColor={t.border} borderRadius={16} p="$2" backgroundColor={t.surfaceSolid}>
+          <WeekdayRow />
+          <Calendar
+            current={iso || earliest}
+            firstDay={1}
+            key={t.name}
+            theme={calendarTheme}
+            // Grey out earlier days here rather than with minDate: the library reads minDate as
+            // UTC midnight, which leaves the day before it pickable in time zones behind UTC
+            dayComponent={(props) => (
+              <DayCell {...props} state={props.date?.dateString < earliest ? 'disabled' : props.state} />
+            )}
+            markedDates={iso ? { [iso]: { selected: true } } : {}}
+            onDayPress={pick}
+          />
+        </YStack>
+      )}
+    </YStack>
+  )
+}
+
 export default function TrainingCalendarScreen({ navigation }) {
   const t = useTheme()
   const calendarTheme = useMemo(() => calendarThemeFor(t), [t])
@@ -216,8 +277,8 @@ export default function TrainingCalendarScreen({ navigation }) {
           </YStack>
 
           <YStack gap="$2">
-            <Paragraph style={{ fontFamily: FONT_SEMIBOLD }} fontSize={11} letterSpacing={0.6} color={t.subtle} textTransform="uppercase">Race date (DD-MM-YYYY)</Paragraph>
-            <Input value={raceDateInput} onChangeText={setRaceDateInput} placeholder="06-12-2026" placeholderTextColor={t.subtle} borderColor={t.border} borderRadius={12} backgroundColor={t.surfaceRaised} color={t.text} style={{ fontFamily: FONT_REGULAR }} />
+            <Paragraph style={{ fontFamily: FONT_SEMIBOLD }} fontSize={11} letterSpacing={0.6} color={t.subtle} textTransform="uppercase">Race date</Paragraph>
+            <RaceDatePicker value={raceDateInput} onChange={setRaceDateInput} today={today} calendarTheme={calendarTheme} />
           </YStack>
 
           <YStack gap="$2">

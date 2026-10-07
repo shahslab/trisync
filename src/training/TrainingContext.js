@@ -46,7 +46,7 @@ export function TrainingProvider({ children }) {
     const weeks = parseInt(weeksInput, 10)
 
     if (!raceIso || !isValidCalendarDate(raceIso)) {
-      return { error: 'Race date must be in DD-MM-YYYY format.' }
+      return { error: 'Choose a race date.' }
     }
     if (daysBetween(today, raceIso) <= 0) {
       return { error: 'Race date must be after today.' }
