@@ -4,7 +4,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { DEFAULT_APPEARANCE, GRADIENTS, themeFor } from './themes'
 
-const STORAGE_KEY = 'trisync/appearance/v1'
+export const STORAGE_KEY = 'trisync/appearance/v1'
 
 const ThemeContext = createContext(null)
 

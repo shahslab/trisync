@@ -37,6 +37,10 @@ function authorizeUrl(keys, base, redirectUri) {
   return `${base}?${params}`
 }
 
+// Strava caps each API app's requests (by default 100 every 15 minutes, 1,000 a day)
+const RATE_LIMIT_MESSAGE = 'Strava\'s sync limit for your API app has been reached. '
+  + 'Try again in 15 minutes, or after midnight UTC if the daily limit is used up.'
+
 // Form-encoded on purpose: Strava's token endpoint doesn't answer CORS preflights,
 // so a JSON body would be blocked in the browser.
 async function requestToken(keys, params) {
@@ -48,7 +52,7 @@ async function requestToken(keys, params) {
   if (!res.ok) {
     throw new Error(res.status === 401
       ? 'Strava rejected the Client ID or Secret. Check them in Settings → Strava.'
-      : `Strava login failed (${res.status}).`)
+      : res.status === 429 ? RATE_LIMIT_MESSAGE : `Strava login failed (${res.status}).`)
   }
   const data = await res.json()
   return {
@@ -75,9 +79,11 @@ export async function refreshSession(keys, session) {
 
 export const isExpired = (session) => session.expiresAt * 1000 < Date.now() + 60 * 1000
 
-// The host Strava must allow as "Authorization Callback Domain" for this instance
+// The host to set as the Strava app's "Authorization Callback Domain": the deployed site.
+// Strava always allows localhost too, so local dev logs in with the same setting.
+export const WEB_CALLBACK_DOMAIN = 'shahshachi1.github.io'
 export const callbackDomain = () => (Platform.OS === 'web'
-  ? window.location.hostname
+  ? WEB_CALLBACK_DOMAIN
   : Linking.parse(Linking.createURL('strava-auth')).hostname)
 
 // Web: full-page redirect to Strava, which sends the browser back here with ?code=...
@@ -113,7 +119,7 @@ async function api(accessToken, path, options = {}) {
     ...options,
     headers: { Authorization: `Bearer ${accessToken}`, ...(options.headers || {}) },
   })
-  if (!res.ok) throw new Error(`Strava request failed (${res.status}).`)
+  if (!res.ok) throw new Error(res.status === 429 ? RATE_LIMIT_MESSAGE : `Strava request failed (${res.status}).`)
   return res.json()
 }
 

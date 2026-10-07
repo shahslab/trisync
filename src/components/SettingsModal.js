@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useAppearance, useTheme, GradientFill } from '../theme/ThemeContext'
 import { Pill } from '../training/WorkoutRow'
 import { useStrava } from '../strava/StravaContext'
+import { backupSupported, exportBackup, importBackup } from '../backup/backup'
 import { FONT_REGULAR, FONT_SEMIBOLD, FONT_BOLD } from '../training/trainingUtils'
 
 const MODES = [
@@ -102,6 +103,12 @@ function StravaSettings() {
         3. Paste its Client ID and Client Secret here
       </Text>
 
+      <Text style={body}>
+        <Text style={strong}>Daily sync cap:</Text> Strava limits each API app to about 1,000 requests a day
+        (100 every 15 minutes), reset at midnight UTC. A sync uses about 3, so that's roughly 300 syncs a day.
+        Your app's exact limits are shown on strava.com/settings/api.
+      </Text>
+
       <TextInput
         style={inputStyle}
         placeholder="Client ID"
@@ -134,6 +141,34 @@ function StravaSettings() {
   )
 }
 
+function BackupSettings() {
+  const t = useTheme()
+  const [note, setNote] = useState('')
+  const body = { fontFamily: FONT_REGULAR, fontSize: 12.5, lineHeight: 19, color: t.subtle }
+
+  const runImport = async () => {
+    setNote('')
+    const result = await importBackup()
+    if (result.error) setNote(result.error)
+  }
+
+  return (
+    <YStack gap="$2.5">
+      <SectionLabel>Backup</SectionLabel>
+      <Text style={body}>
+        Everything is saved only in this browser, so clearing site data, private browsing or a home-screen
+        install on iPhone can start you from scratch. Export a backup file to keep your plan, workouts and
+        settings (including your Strava API keys), and import it on any device. After importing, reconnect Strava.
+      </Text>
+      <XStack gap="$2" flexWrap="wrap" alignItems="center">
+        <Pill label="Export backup" variant="primary" onPress={() => exportBackup().catch((e) => setNote(e.message))} />
+        <Pill label="Import backup" onPress={runImport} />
+      </XStack>
+      {!!note && <Text style={{ ...body, color: t.danger }}>{note}</Text>}
+    </YStack>
+  )
+}
+
 export default function SettingsModal({ visible, onClose }) {
   const t = useTheme()
   const { appearance, setAppearance, gradients } = useAppearance()
@@ -143,8 +178,9 @@ export default function SettingsModal({ visible, onClose }) {
       <Pressable style={{ flex: 1, backgroundColor: t.overlay, alignItems: 'center', justifyContent: 'center', padding: 16 }} onPress={onClose}>
         {/* Inner Pressable swallows taps so only the backdrop closes the dialog */}
         <Pressable onPress={() => {}} style={{ width: '100%', maxWidth: 420, maxHeight: '90%' }}>
-          <YStack backgroundColor={t.surfaceSolid} borderColor={t.border} borderWidth={1} borderRadius={20} overflow="hidden">
-            <ScrollView contentContainerStyle={{ padding: 20, gap: 20 }}>
+          {/* maxHeight + flexShrink keep the dialog on screen; the ScrollView takes the overflow */}
+          <YStack backgroundColor={t.surfaceSolid} borderColor={t.border} borderWidth={1} borderRadius={20} overflow="hidden" maxHeight="100%" flexShrink={1}>
+            <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ padding: 20, gap: 20 }}>
               <XStack justifyContent="space-between" alignItems="center" width="100%">
                 <Text style={{ fontFamily: FONT_BOLD, fontSize: 18, color: t.text }}>Settings</Text>
                 <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Close settings">
@@ -186,6 +222,8 @@ export default function SettingsModal({ visible, onClose }) {
               )}
 
               <StravaSettings />
+
+              {backupSupported && <BackupSettings />}
             </ScrollView>
           </YStack>
         </Pressable>

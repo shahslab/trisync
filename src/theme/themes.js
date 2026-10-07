@@ -1,5 +1,5 @@
 // Colour palettes. Dark matches the Strava activity graphic (near-black cards, muted grey
-// text, green/pink accents). Gradient themes paint a gradient behind the whole app and
+// text, blue accents). Gradient themes paint a gradient behind the whole app and
 // use translucent, tinted surfaces on top of it, built on a dark or light base.
 
 const dark = {
@@ -17,12 +17,12 @@ const dark = {
   subtle: '#8c8c94',
   disabled: '#3f3f46',
   planRing: '#3a3a40',
-  primary: '#2fd36b',
+  primary: '#3b9eff', // same blue as secondary
   secondary: '#3b9eff', // blue, used by the Add a workout section
   onAccent: '#0b0b0d', // text on primary/status fills
   danger: '#f43f6b',
   dangerBorder: '#5a1a2b',
-  status: { done: '#2fd36b', partial: '#f43f6b', missed: '#ff8a3d', upcoming: '#a1a1aa' },
+  status: { done: '#2fd36b', partial: '#ff8a3d', missed: '#f43f6b', upcoming: '#a1a1aa' },
   race: '#facc15',
   cardShadow: { boxShadow: '0 8px 24px rgba(0,0,0,0.35)' },
   overlay: 'rgba(0,0,0,0.7)',
@@ -43,12 +43,12 @@ const light = {
   subtle: '#71717a',
   disabled: '#d4d4d8',
   planRing: '#d4d4d8',
-  primary: '#16a34a',
+  primary: '#2563eb',
   secondary: '#2563eb',
   onAccent: '#ffffff',
   danger: '#e11d48',
   dangerBorder: '#fecdd3',
-  status: { done: '#16a34a', partial: '#e11d48', missed: '#ea580c', upcoming: '#71717a' },
+  status: { done: '#16a34a', partial: '#ea580c', missed: '#e11d48', upcoming: '#71717a' },
   race: '#ca8a04',
   cardShadow: { boxShadow: '0 6px 20px rgba(24,24,27,0.08)' },
   overlay: 'rgba(24,24,27,0.45)',

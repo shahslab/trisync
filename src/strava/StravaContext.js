@@ -7,9 +7,9 @@ import {
   activitiesOnDate, matchingActivities, applyWorkoutToActivity, getActivity,
 } from './stravaApi'
 
-const STORAGE_KEY = 'trisync/strava/v1'
+export const STORAGE_KEY = 'trisync/strava/v1'
 // This user's own Strava API app ({ clientId, clientSecret }), entered in Settings
-const KEYS_STORAGE_KEY = 'trisync/strava-keys/v1'
+export const KEYS_STORAGE_KEY = 'trisync/strava-keys/v1'
 const LEGACY_STORAGE_KEY = 'oneplan/strava/v1'
 
 const StravaContext = createContext(null)

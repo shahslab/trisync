@@ -5,7 +5,7 @@ import {
   todayStr, displayToIso, isValidCalendarDate, daysBetween, subtractDays, makeId,
 } from './trainingUtils'
 
-const STORAGE_KEY = 'trisync/training/v1'
+export const STORAGE_KEY = 'trisync/training/v1'
 const LEGACY_STORAGE_KEY = 'oneplan/training/v1' // before the OnePlan → TriSync rename
 
 const TrainingContext = createContext(null)

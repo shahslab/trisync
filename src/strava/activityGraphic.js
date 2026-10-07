@@ -14,7 +14,7 @@ const MIN_HEIGHT_SHARE = 0.18
 // Laps within this speed spread count as steady effort: every bar lit, no hard/easy split
 const STEADY_SPREAD = 0.1
 
-const ACCENTS = { done: '#2fd36b', partial: '#f43f6b' }
+const ACCENTS = { done: '#2fd36b', partial: '#ff8a3d' }
 const DIM = '#2b2b30'
 const MUTED = '#8c8c94'
 const FONT = "font-family=\"'Plus Jakarta Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif\""
