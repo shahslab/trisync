@@ -9,6 +9,7 @@ import {
   FONT_REGULAR, FONT_SEMIBOLD, FONT_BOLD,
   ACCENT_PRIMARY, notesInputStyle,
 } from './trainingUtils'
+import { useStrava } from '../strava/StravaContext'
 
 export function Pill({ label, active, color, onPress, variant = 'default' }) {
   const isDanger = variant === 'danger'
@@ -97,14 +98,86 @@ function RowMenu({ onEdit, onDelete }) {
   )
 }
 
+const smallText = { fontFamily: FONT_REGULAR, fontSize: 12.5, lineHeight: 18, color: SUBTLE }
+
+function StravaSync({ workout, sync, onRun, onCancel }) {
+  if (sync?.state === 'syncing') {
+    return <Text style={smallText}>Updating Strava…</Text>
+  }
+
+  if (sync?.state === 'choose') {
+    return (
+      <YStack gap="$2">
+        <Text style={smallText}>Which Strava activity is this?</Text>
+        <XStack gap="$2" flexWrap="wrap">
+          {sync.activities.map((a) => (
+            <Pill
+              key={a.id}
+              label={`${a.name} · ${(a.start_date_local || '').slice(11, 16)}`}
+              onPress={() => onRun(a.id)}
+            />
+          ))}
+          <Pill label="Cancel" onPress={onCancel} />
+        </XStack>
+      </YStack>
+    )
+  }
+
+  if (sync?.state === 'none' || sync?.state === 'error') {
+    const message = sync.state === 'none'
+      ? 'No Strava activity on this day yet. Retry once your watch has uploaded.'
+      : sync.message
+    return (
+      <XStack gap="$2" ai="center" flexWrap="wrap">
+        <Text style={{ ...smallText, flexShrink: 1 }}>{message}</Text>
+        <Pill label="Retry" onPress={() => onRun()} />
+      </XStack>
+    )
+  }
+
+  if (workout.stravaActivityId) {
+    return (
+      <XStack gap="$2" ai="center" flexWrap="wrap">
+        <Text style={{ ...smallText, flexShrink: 1 }}>Strava: {workout.stravaActivityName}</Text>
+        {workout.status !== 'pending' && <Pill label="Sync again" onPress={() => onRun()} />}
+      </XStack>
+    )
+  }
+
+  return null
+}
+
 export function WorkoutRow({ workout, today, onUpdate, onDelete }) {
   const [isEditing, setIsEditing] = useState(false)
   const [editType, setEditType] = useState(workout.type)
   const [editTitle, setEditTitle] = useState(workout.title)
   const [editNotes, setEditNotes] = useState(workout.notes || '')
 
+  const strava = useStrava()
+  const [sync, setSync] = useState(null) // { state: 'syncing' | 'none' | 'choose' | 'error', activities, message }
+
   const status = statusFor(workout, today)
   const statusColor = STATUS_COLORS[status]
+
+  const runSync = async (target, activityId) => {
+    setSync({ state: 'syncing' })
+    try {
+      const result = await strava.syncWorkout(target, activityId)
+      if (result.status === 'synced') {
+        onUpdate(target.id, { stravaActivityId: result.activity.id, stravaActivityName: result.activity.name })
+        setSync(null)
+      } else {
+        setSync({ state: result.status, activities: result.activities })
+      }
+    } catch (e) {
+      setSync({ state: 'error', message: e.message })
+    }
+  }
+
+  const setStatus = (nextStatus) => {
+    onUpdate(workout.id, { status: nextStatus })
+    if (nextStatus !== 'pending' && strava.canSync(workout)) runSync({ ...workout, status: nextStatus })
+  }
 
   const startEdit = () => {
     setEditType(workout.type)
@@ -189,10 +262,19 @@ export function WorkoutRow({ workout, today, onUpdate, onDelete }) {
       </XStack>
 
       <XStack gap="$2">
-        <Pill label="Not done" active={workout.status === 'pending'} color={STATUS_COLORS.upcoming} onPress={() => onUpdate(workout.id, { status: 'pending' })} />
-        <Pill label="Partial" active={workout.status === 'partial'} color={STATUS_COLORS.partial} onPress={() => onUpdate(workout.id, { status: 'partial' })} />
-        <Pill label="Done" active={workout.status === 'done'} color={STATUS_COLORS.done} onPress={() => onUpdate(workout.id, { status: 'done' })} />
+        <Pill label="Not done" active={workout.status === 'pending'} color={STATUS_COLORS.upcoming} onPress={() => setStatus('pending')} />
+        <Pill label="Partial" active={workout.status === 'partial'} color={STATUS_COLORS.partial} onPress={() => setStatus('partial')} />
+        <Pill label="Done" active={workout.status === 'done'} color={STATUS_COLORS.done} onPress={() => setStatus('done')} />
       </XStack>
+
+      {strava.canSync(workout) && (
+        <StravaSync
+          workout={workout}
+          sync={sync}
+          onRun={(activityId) => runSync(workout, activityId)}
+          onCancel={() => setSync(null)}
+        />
+      )}
     </YStack>
   )
 }

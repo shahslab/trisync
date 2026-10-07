@@ -1,7 +1,11 @@
-import React, { createContext, useContext, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState } from 'react'
+import { View } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
-  todayStr, displayToIso, isValidCalendarDate, daysBetween, subtractDays, makeId,
+  todayStr, displayToIso, isValidCalendarDate, daysBetween, subtractDays, makeId, BG,
 } from './trainingUtils'
+
+const STORAGE_KEY = 'oneplan/training/v1'
 
 const TrainingContext = createContext(null)
 
@@ -10,6 +14,23 @@ export function TrainingProvider({ children }) {
 
   const [planRange, setPlanRange] = useState(null) // { start, raceDate, raceName, weeks }
   const [workouts, setWorkouts] = useState([])
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then((stored) => {
+        if (!stored) return
+        const data = JSON.parse(stored)
+        setPlanRange(data.planRange || null)
+        setWorkouts(data.workouts || [])
+      })
+      .finally(() => setLoaded(true))
+  }, [])
+
+  // Save only after loading, so the empty initial state never overwrites stored data
+  useEffect(() => {
+    if (loaded) AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ planRange, workouts }))
+  }, [loaded, planRange, workouts])
 
   const createPlan = ({ raceNameInput, raceDateInput, weeksInput }) => {
     const raceIso = displayToIso(raceDateInput)
@@ -67,6 +88,8 @@ export function TrainingProvider({ children }) {
     updateWorkout,
     deleteWorkout,
   }
+
+  if (!loaded) return <View style={{ flex: 1, backgroundColor: BG }} />
 
   return <TrainingContext.Provider value={value}>{children}</TrainingContext.Provider>
 }

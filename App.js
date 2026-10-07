@@ -21,6 +21,7 @@ import TrainingCalendarScreen from './src/screens/TrainingCalendarScreen'
 import TodaysActivitiesScreen from './src/screens/TodaysActivitiesScreen'
 import TrainingHeaderMenu from './src/components/TrainingHeaderMenu'
 import { TrainingProvider } from './src/training/TrainingContext'
+import { StravaProvider } from './src/strava/StravaContext'
 import { BG, SURFACE, BORDER, TEXT, SUBTLE, ACCENT_PRIMARY, FONT_BOLD, FONT_SEMIBOLD } from './src/training/trainingUtils'
 
 const Tab = createBottomTabNavigator()
@@ -60,37 +61,39 @@ export default function App() {
 
   return (
     <TamaguiProvider config={tamaguiConfig} defaultTheme="dark">
-      <TrainingProvider>
-        <View style={{ flex: 1, ...(Platform.OS === 'web' ? { height: '100vh' } : null) }}>
-          <NavigationContainer
-            theme={{
-              ...DarkTheme,
-              colors: { ...DarkTheme.colors, background: BG, card: SURFACE, border: BORDER, text: TEXT },
-            }}
-          >
-            <Tab.Navigator screenOptions={screenOptions}>
-              <Tab.Screen
-                name="TodaysActivities"
-                component={TodaysActivitiesScreen}
-                options={{
-                  headerTitle: "Today's Activities",
-                  tabBarLabel: 'Today',
-                  tabBarIcon: ({ color, size }) => <Ionicons name="today-outline" size={size} color={color} />,
-                }}
-              />
-              <Tab.Screen
-                name="TrainingPlan"
-                component={TrainingCalendarScreen}
-                options={{
-                  headerTitle: 'Training Plan',
-                  tabBarLabel: 'Calendar',
-                  tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" size={size} color={color} />,
-                }}
-              />
-            </Tab.Navigator>
-          </NavigationContainer>
-        </View>
-      </TrainingProvider>
+      <StravaProvider>
+        <TrainingProvider>
+          <View style={{ flex: 1, ...(Platform.OS === 'web' ? { height: '100vh' } : null) }}>
+            <NavigationContainer
+              theme={{
+                ...DarkTheme,
+                colors: { ...DarkTheme.colors, background: BG, card: SURFACE, border: BORDER, text: TEXT },
+              }}
+            >
+              <Tab.Navigator screenOptions={screenOptions}>
+                <Tab.Screen
+                  name="TodaysActivities"
+                  component={TodaysActivitiesScreen}
+                  options={{
+                    headerTitle: "Today's Activities",
+                    tabBarLabel: 'Today',
+                    tabBarIcon: ({ color, size }) => <Ionicons name="today-outline" size={size} color={color} />,
+                  }}
+                />
+                <Tab.Screen
+                  name="TrainingPlan"
+                  component={TrainingCalendarScreen}
+                  options={{
+                    headerTitle: 'Training Plan',
+                    tabBarLabel: 'Calendar',
+                    tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" size={size} color={color} />,
+                  }}
+                />
+              </Tab.Navigator>
+            </NavigationContainer>
+          </View>
+        </TrainingProvider>
+      </StravaProvider>
     </TamaguiProvider>
   )
 }
