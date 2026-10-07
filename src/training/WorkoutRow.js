@@ -163,7 +163,7 @@ export function WorkoutRow({ workout, today, onUpdate, onDelete }) {
   const [editNotes, setEditNotes] = useState(workout.notes || '')
 
   const strava = useStrava()
-  const { planRange, workouts } = useTraining()
+  const { planRange, workouts, allWorkouts } = useTraining()
   const [showGraphic, setShowGraphic] = useState(false)
   const [sync, setSync] = useState(null) // { state: 'syncing' | 'none' | 'choose' | 'error', activities, message }
 
@@ -173,10 +173,13 @@ export function WorkoutRow({ workout, today, onUpdate, onDelete }) {
   const runSync = async (target, activityId) => {
     setSync({ state: 'syncing' })
     try {
-      const linked = workouts.filter((w) => w.id !== target.id && w.stravaActivityId)
+      // Activities linked in any plan are never offered again; brick legs come from this plan
+      const linked = allWorkouts.filter((w) => w.id !== target.id && w.stravaActivityId)
       const result = await strava.syncWorkout(target, {
         linkedActivityIds: linked.map((w) => w.stravaActivityId),
-        brickSiblings: target.type === 'Brick' ? linked.filter((w) => w.type === 'Brick' && w.date === target.date) : [],
+        brickSiblings: target.type === 'Brick'
+          ? workouts.filter((w) => w.id !== target.id && w.stravaActivityId && w.type === 'Brick' && w.date === target.date)
+          : [],
       }, activityId)
       if (result.status === 'synced') {
         onUpdate(target.id, { stravaActivityId: result.activity.id, stravaActivityName: result.activity.name })

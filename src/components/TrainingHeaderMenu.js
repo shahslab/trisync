@@ -10,12 +10,13 @@ import { FONT_REGULAR, FONT_SEMIBOLD } from '../training/trainingUtils'
 import { useTheme } from '../theme/ThemeContext'
 import SettingsModal from './SettingsModal'
 import InstallModal from '../pwa/InstallModal'
+import PlansModal from './PlansModal'
 import { useInstallPrompt } from '../pwa/installPrompt'
 
 const itemStyle = { paddingVertical: 10, paddingHorizontal: 10 }
 
 export default function TrainingHeaderMenu() {
-  const { planRange, startEditingPlan } = useTraining()
+  const { planRange, startEditingPlan, startNewPlan } = useTraining()
   const navigation = useNavigation()
   const strava = useStrava()
   const t = useTheme()
@@ -23,6 +24,7 @@ export default function TrainingHeaderMenu() {
   const [open, setOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [installOpen, setInstallOpen] = useState(false)
+  const [plansOpen, setPlansOpen] = useState(false)
   const install = useInstallPrompt()
 
   // Use the browser's own install prompt when it offers one; otherwise show the steps
@@ -57,6 +59,10 @@ export default function TrainingHeaderMenu() {
           elevate
         >
           <YStack minWidth={180}>
+            <Pressable onPress={choose(() => setPlansOpen(true))} style={itemStyle}>
+              <Text style={itemText}>My plans</Text>
+            </Pressable>
+
             <Pressable
               disabled={!planRange}
               onPress={choose(() => {
@@ -98,6 +104,16 @@ export default function TrainingHeaderMenu() {
 
       <SettingsModal visible={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <InstallModal visible={installOpen} onClose={() => setInstallOpen(false)} />
+      <PlansModal
+        visible={plansOpen}
+        onClose={() => setPlansOpen(false)}
+        onNewPlan={() => {
+          // The plan form lives on the Calendar tab
+          setPlansOpen(false)
+          startNewPlan()
+          navigation.navigate('TrainingPlan')
+        }}
+      />
     </>
   )
 }

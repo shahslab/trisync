@@ -177,9 +177,11 @@ function RaceDatePicker({ value, onChange, today, calendarTheme }) {
             theme={calendarTheme}
             // Grey out earlier days here rather than with minDate: the library reads minDate as
             // UTC midnight, which leaves the day before it pickable in time zones behind UTC
-            dayComponent={(props) => (
-              <DayCell {...props} state={props.date?.dateString < earliest ? 'disabled' : props.state} />
-            )}
+            // Greyed-out days do nothing when tapped (the library would otherwise jump months)
+            dayComponent={(props) => {
+              const disabled = props.state === 'disabled' || props.date?.dateString < earliest
+              return <DayCell {...props} state={disabled ? 'disabled' : props.state} onPress={disabled ? () => {} : props.onPress} />
+            }}
             markedDates={iso ? { [iso]: { selected: true } } : {}}
             onDayPress={pick}
           />
@@ -193,7 +195,7 @@ export default function TrainingCalendarScreen({ navigation }) {
   const t = useTheme()
   const calendarTheme = useMemo(() => calendarThemeFor(t), [t])
   const {
-    today, planRange, createPlan, editingPlan, cancelEditingPlan,
+    today, planRange, createPlan, editingPlan, creatingPlan, cancelEditingPlan,
     workouts, addWorkout, updateWorkout, deleteWorkout,
   } = useTraining()
 
@@ -204,14 +206,19 @@ export default function TrainingCalendarScreen({ navigation }) {
 
   const [selectedDate, setSelectedDate] = useState(today)
 
-  // Editing an existing plan: start the form from its current values
+  // Editing starts the form from the current plan; a new plan starts it blank
   useEffect(() => {
-    if (!editingPlan || !planRange) return
-    setRaceNameInput(planRange.raceName || '')
-    setRaceDateInput(isoToDisplay(planRange.raceDate))
-    setWeeksInput(String(planRange.weeks))
+    if (editingPlan && planRange) {
+      setRaceNameInput(planRange.raceName || '')
+      setRaceDateInput(isoToDisplay(planRange.raceDate))
+      setWeeksInput(String(planRange.weeks))
+    } else if (creatingPlan) {
+      setRaceNameInput('')
+      setRaceDateInput('')
+      setWeeksInput('12')
+    }
     setSetupError('')
-  }, [editingPlan])
+  }, [editingPlan, creatingPlan])
 
   const handleCreatePlan = () => {
     const result = createPlan({ raceNameInput, raceDateInput, weeksInput })
@@ -257,7 +264,9 @@ export default function TrainingCalendarScreen({ navigation }) {
   const dayWorkouts = workouts.filter((w) => w.date === selectedDate)
   const isRaceDay = planRange && selectedDate === planRange.raceDate
 
-  if (!planRange || editingPlan) {
+  if (!planRange || editingPlan || creatingPlan) {
+    // Cancel goes back to the current plan, so only offer it when there is one
+    const canCancel = !!planRange && (editingPlan || creatingPlan)
     return (
       <ScrollView
         style={{ flex: 1, backgroundColor: t.bg }}
@@ -267,7 +276,7 @@ export default function TrainingCalendarScreen({ navigation }) {
           <Paragraph style={{ fontFamily: FONT_BOLD }} fontSize={11} letterSpacing={2} color={t.subtle} textTransform="uppercase">
             Training Plan
           </Paragraph>
-          <Text style={{ fontFamily: FONT_EXTRABOLD, fontSize: 28, color: t.text }}>{editingPlan ? 'Edit Your Plan' : 'Set Up Your Race'}</Text>
+          <Text style={{ fontFamily: FONT_EXTRABOLD, fontSize: 28, color: t.text }}>{editingPlan ? 'Edit Your Plan' : creatingPlan && planRange ? 'New Race Plan' : 'Set Up Your Race'}</Text>
         </YStack>
 
         <Card backgroundColor={t.surface} borderColor={t.border} borderWidth={1} borderRadius={20} p="$5" gap="$4" style={t.cardShadow}>
@@ -290,7 +299,7 @@ export default function TrainingCalendarScreen({ navigation }) {
 
           <XStack gap="$2">
             <Pill label={editingPlan ? 'Save Plan' : 'Create Plan'} variant="primary" onPress={handleCreatePlan} />
-            {editingPlan && <Pill label="Cancel" onPress={cancelEditingPlan} />}
+            {canCancel && <Pill label="Cancel" onPress={cancelEditingPlan} />}
           </XStack>
         </Card>
       </ScrollView>

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Platform } from 'react-native'
 
-import { STORAGE_KEY as TRAINING_KEY } from '../training/TrainingContext'
+import { STORAGE_KEY as TRAINING_KEY, normalizeTrainingData } from '../training/TrainingContext'
 import { STORAGE_KEY as APPEARANCE_KEY } from '../theme/ThemeContext'
 import { STORAGE_KEY as STRAVA_SESSION_KEY, KEYS_STORAGE_KEY as STRAVA_KEYS_KEY } from '../strava/StravaContext'
 import { toIsoDate } from '../training/trainingUtils'
@@ -12,7 +12,7 @@ import { toIsoDate } from '../training/trainingUtils'
 const FORMAT = 'trisync-backup'
 const VERSION = 1
 const SECTIONS = {
-  training: TRAINING_KEY, // planRange + workouts
+  training: TRAINING_KEY, // every plan and its workouts
   appearance: APPEARANCE_KEY,
   stravaKeys: STRAVA_KEYS_KEY, // the user's Strava API Client ID and Secret
 }
@@ -74,9 +74,12 @@ export async function importBackup() {
     return { error: 'This backup comes from a newer version of TriSync. Refresh the app and try again.' }
   }
 
-  if (!window.confirm('Replace the plan, workouts and settings on this device with the backup?')) {
+  if (!window.confirm('Replace the plans, workouts and settings on this device with the backup?')) {
     return { cancelled: true }
   }
+
+  // Backups from before multiple plans hold a single plan; convert them on the way in
+  if (backup.data.training) backup.data.training = normalizeTrainingData(backup.data.training)
 
   const previousKeys = await AsyncStorage.getItem(STRAVA_KEYS_KEY)
   for (const [section, key] of Object.entries(SECTIONS)) {
