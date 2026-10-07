@@ -17,7 +17,7 @@ export default function TodaysActivitiesScreen({ navigation }) {
   return (
     <YStack flex={1} backgroundColor={t.bg} p="$5" gap="$4">
       <YStack gap="$0.5">
-        <Paragraph fontFamily={FONT_BOLD} fontSize={11} letterSpacing={2} color={t.subtle} textTransform="uppercase">
+        <Paragraph style={{ fontFamily: FONT_BOLD }} fontSize={11} letterSpacing={2} color={t.subtle} textTransform="uppercase">
             Today
         </Paragraph>
         <Text style={{ fontFamily: FONT_EXTRABOLD, fontSize: 24, color: t.text }}>{formatLongDate(today)}</Text>
@@ -25,20 +25,20 @@ export default function TodaysActivitiesScreen({ navigation }) {
 
       {!planRange ? (
         <Card backgroundColor={t.surface} borderColor={t.border} borderWidth={1} borderRadius={20} p="$4" style={t.cardShadow}>
-          <Paragraph fontFamily={FONT_REGULAR} color={t.subtle} fontSize={13}>
+          <Paragraph style={{ fontFamily: FONT_REGULAR }} color={t.subtle} fontSize={13}>
             No plan set up yet. Head to the full calendar to create one.
           </Paragraph>
         </Card>
       ) : (
         <Card backgroundColor={t.surface} borderColor={t.border} borderWidth={1} borderRadius={20} p="$4" gap="$1" style={t.cardShadow}>
           <Text style={{ fontFamily: FONT_BOLD, fontSize: 16, color: t.text }}>{planRange.raceName || 'Race Plan'}</Text>
-          <Paragraph fontFamily={FONT_REGULAR} color={t.subtle} fontSize={13}>Race day {isoToDisplay(planRange.raceDate)}</Paragraph>
+          <Paragraph style={{ fontFamily: FONT_REGULAR }} color={t.subtle} fontSize={13}>Race day {isoToDisplay(planRange.raceDate)}</Paragraph>
         </Card>
       )}
 
       <Card backgroundColor={t.surface} borderColor={t.border} borderWidth={1} borderRadius={20} p="$4" gap="$3" style={t.cardShadow}>
         {todaysWorkouts.length === 0 ? (
-          <Paragraph fontFamily={FONT_REGULAR} color={t.subtle} fontSize={13}>No workouts scheduled for today.</Paragraph>
+          <Paragraph style={{ fontFamily: FONT_REGULAR }} color={t.subtle} fontSize={13}>No workouts scheduled for today.</Paragraph>
         ) : (
           todaysWorkouts.map((w) => (
             <WorkoutRow key={w.id} workout={w} today={today} onUpdate={updateWorkout} onDelete={deleteWorkout} />

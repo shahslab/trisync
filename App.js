@@ -10,12 +10,11 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 
 import {
   useFonts,
-  PlusJakartaSans_400Regular,
-  PlusJakartaSans_500Medium,
-  PlusJakartaSans_600SemiBold,
-  PlusJakartaSans_700Bold,
-  PlusJakartaSans_800ExtraBold,
-} from '@expo-google-fonts/plus-jakarta-sans'
+  JosefinSans_400Regular,
+  JosefinSans_500Medium,
+  JosefinSans_600SemiBold,
+  JosefinSans_700Bold,
+} from '@expo-google-fonts/josefin-sans'
 
 import TrainingCalendarScreen from './src/screens/TrainingCalendarScreen'
 import TodaysActivitiesScreen from './src/screens/TodaysActivitiesScreen'
@@ -40,12 +39,11 @@ export default function App() {
 function AppShell() {
   const t = useTheme()
   const [fontsLoaded] = useFonts({
-    PlusJakartaSans_400Regular,
-    PlusJakartaSans_500Medium,
-    PlusJakartaSans_600SemiBold,
-    PlusJakartaSans_700Bold,
-    PlusJakartaSans_800ExtraBold,
-  })
+    JosefinSans_400Regular,
+    JosefinSans_500Medium,
+    JosefinSans_600SemiBold,
+    JosefinSans_700Bold,
+    })
 
   const screenOptions = useMemo(() => ({
     headerStyle: { backgroundColor: t.header },

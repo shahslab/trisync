@@ -61,11 +61,11 @@ export function statusFor(workout, todayIso) {
 export const TYPE_LIST = Object.values(WORKOUT_TYPES)
 
 // Colours live in src/theme (useTheme); only fonts and theme-derived styles are here
-export const FONT_REGULAR = 'PlusJakartaSans_400Regular'
-export const FONT_MEDIUM = 'PlusJakartaSans_500Medium'
-export const FONT_SEMIBOLD = 'PlusJakartaSans_600SemiBold'
-export const FONT_BOLD = 'PlusJakartaSans_700Bold'
-export const FONT_EXTRABOLD = 'PlusJakartaSans_800ExtraBold'
+export const FONT_REGULAR = 'JosefinSans_400Regular'
+export const FONT_MEDIUM = 'JosefinSans_500Medium'
+export const FONT_SEMIBOLD = 'JosefinSans_600SemiBold'
+export const FONT_BOLD = 'JosefinSans_700Bold'
+export const FONT_EXTRABOLD = 'JosefinSans_700Bold' // Josefin Sans tops out at Bold
 
 export const notesInputStyle = (theme) => ({
   borderWidth: 1,

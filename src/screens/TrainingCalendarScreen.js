@@ -203,7 +203,7 @@ export default function TrainingCalendarScreen({ navigation }) {
         contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}
       >
         <YStack gap="$1">
-          <Paragraph fontFamily={FONT_BOLD} fontSize={11} letterSpacing={2} color={t.subtle} textTransform="uppercase">
+          <Paragraph style={{ fontFamily: FONT_BOLD }} fontSize={11} letterSpacing={2} color={t.subtle} textTransform="uppercase">
             Training Plan
           </Paragraph>
           <Text style={{ fontFamily: FONT_EXTRABOLD, fontSize: 28, color: t.text }}>{editingPlan ? 'Edit Your Plan' : 'Set Up Your Race'}</Text>
@@ -211,21 +211,21 @@ export default function TrainingCalendarScreen({ navigation }) {
 
         <Card backgroundColor={t.surface} borderColor={t.border} borderWidth={1} borderRadius={20} p="$5" gap="$4" style={t.cardShadow}>
           <YStack gap="$2">
-            <Paragraph fontFamily={FONT_SEMIBOLD} fontSize={11} letterSpacing={0.6} color={t.subtle} textTransform="uppercase">Race name</Paragraph>
-            <Input value={raceNameInput} onChangeText={setRaceNameInput} placeholder="e.g. Ironman 70.3 Oceanside" placeholderTextColor={t.subtle} borderColor={t.border} borderRadius={12} backgroundColor={t.surfaceRaised} color={t.text} fontFamily={FONT_REGULAR} />
+            <Paragraph style={{ fontFamily: FONT_SEMIBOLD }} fontSize={11} letterSpacing={0.6} color={t.subtle} textTransform="uppercase">Race name</Paragraph>
+            <Input value={raceNameInput} onChangeText={setRaceNameInput} placeholder="e.g. Ironman 70.3 Oceanside" placeholderTextColor={t.subtle} borderColor={t.border} borderRadius={12} backgroundColor={t.surfaceRaised} color={t.text} style={{ fontFamily: FONT_REGULAR }} />
           </YStack>
 
           <YStack gap="$2">
-            <Paragraph fontFamily={FONT_SEMIBOLD} fontSize={11} letterSpacing={0.6} color={t.subtle} textTransform="uppercase">Race date (DD-MM-YYYY)</Paragraph>
-            <Input value={raceDateInput} onChangeText={setRaceDateInput} placeholder="06-12-2026" placeholderTextColor={t.subtle} borderColor={t.border} borderRadius={12} backgroundColor={t.surfaceRaised} color={t.text} fontFamily={FONT_REGULAR} />
+            <Paragraph style={{ fontFamily: FONT_SEMIBOLD }} fontSize={11} letterSpacing={0.6} color={t.subtle} textTransform="uppercase">Race date (DD-MM-YYYY)</Paragraph>
+            <Input value={raceDateInput} onChangeText={setRaceDateInput} placeholder="06-12-2026" placeholderTextColor={t.subtle} borderColor={t.border} borderRadius={12} backgroundColor={t.surfaceRaised} color={t.text} style={{ fontFamily: FONT_REGULAR }} />
           </YStack>
 
           <YStack gap="$2">
-            <Paragraph fontFamily={FONT_SEMIBOLD} fontSize={11} letterSpacing={0.6} color={t.subtle} textTransform="uppercase">Training weeks</Paragraph>
-            <Input value={weeksInput} onChangeText={setWeeksInput} keyboardType="numeric" placeholder="12" placeholderTextColor={t.subtle} borderColor={t.border} borderRadius={12} backgroundColor={t.surfaceRaised} color={t.text} fontFamily={FONT_REGULAR} />
+            <Paragraph style={{ fontFamily: FONT_SEMIBOLD }} fontSize={11} letterSpacing={0.6} color={t.subtle} textTransform="uppercase">Training weeks</Paragraph>
+            <Input value={weeksInput} onChangeText={setWeeksInput} keyboardType="numeric" placeholder="12" placeholderTextColor={t.subtle} borderColor={t.border} borderRadius={12} backgroundColor={t.surfaceRaised} color={t.text} style={{ fontFamily: FONT_REGULAR }} />
           </YStack>
 
-          {!!setupError && <Paragraph fontFamily={FONT_REGULAR} color={t.danger} fontSize={13}>{setupError}</Paragraph>}
+          {!!setupError && <Paragraph style={{ fontFamily: FONT_REGULAR }} color={t.danger} fontSize={13}>{setupError}</Paragraph>}
 
           <XStack gap="$2">
             <Pill label={editingPlan ? 'Save Plan' : 'Create Plan'} variant="primary" onPress={handleCreatePlan} />
@@ -242,7 +242,7 @@ export default function TrainingCalendarScreen({ navigation }) {
       contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}
     >
       <YStack gap="$0.5">
-        <Paragraph fontFamily={FONT_BOLD} fontSize={11} letterSpacing={2} color={t.subtle} textTransform="uppercase">
+        <Paragraph style={{ fontFamily: FONT_BOLD }} fontSize={11} letterSpacing={2} color={t.subtle} textTransform="uppercase">
           Training Plan
         </Paragraph>
         <Text style={{ fontFamily: FONT_EXTRABOLD, fontSize: 24, color: t.text }}>
@@ -252,9 +252,9 @@ export default function TrainingCalendarScreen({ navigation }) {
 
       <Card backgroundColor={t.surface} borderColor={t.border} borderWidth={1} borderRadius={20} p="$4" gap="$1" style={t.cardShadow}>
         <YStack>
-          <Paragraph fontFamily={FONT_REGULAR} color={t.subtle} fontSize={13}>{planRange.weeks} - Week Plan</Paragraph>
-          <Paragraph fontFamily={FONT_REGULAR} color={t.subtle} fontSize={13}>Start: {formatOrdinalDate(planRange.start)}</Paragraph>
-          <Paragraph fontFamily={FONT_REGULAR} color={t.subtle} fontSize={13}>Race Day: {formatOrdinalDate(planRange.raceDate)}</Paragraph>
+          <Paragraph style={{ fontFamily: FONT_REGULAR }} color={t.subtle} fontSize={13}>{planRange.weeks} - Week Plan</Paragraph>
+          <Paragraph style={{ fontFamily: FONT_REGULAR }} color={t.subtle} fontSize={13}>Start: {formatOrdinalDate(planRange.start)}</Paragraph>
+          <Paragraph style={{ fontFamily: FONT_REGULAR }} color={t.subtle} fontSize={13}>Race Day: {formatOrdinalDate(planRange.raceDate)}</Paragraph>
         </YStack>
         <Text style={{ fontFamily: FONT_EXTRABOLD, fontSize: 20, color: daysToRace < 0 ? t.status.done : t.primary }}>
           {daysToRace > 0
@@ -291,7 +291,7 @@ export default function TrainingCalendarScreen({ navigation }) {
         </Text>
 
         {dayWorkouts.length === 0 ? (
-          <Paragraph fontFamily={FONT_REGULAR} color={t.subtle} fontSize={13}>No workouts scheduled yet.</Paragraph>
+          <Paragraph style={{ fontFamily: FONT_REGULAR }} color={t.subtle} fontSize={13}>No workouts scheduled yet.</Paragraph>
         ) : (
           dayWorkouts.map((w) => (
             <WorkoutRow key={w.id} workout={w} today={today} onUpdate={updateWorkout} onDelete={deleteWorkout} />

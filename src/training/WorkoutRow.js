@@ -224,7 +224,7 @@ export function WorkoutRow({ workout, today, onUpdate, onDelete }) {
           borderRadius={10}
           backgroundColor={t.surface}
           color={t.text}
-          fontFamily={FONT_REGULAR}
+          style={{ fontFamily: FONT_REGULAR }}
           placeholderTextColor={t.subtle}
         />
 
@@ -319,7 +319,7 @@ export function AddWorkoutForm({ onAdd }) {
 
   return (
     <YStack borderTopWidth={1} borderColor={t.border} pt="$3" gap="$2">
-      <Paragraph fontFamily={FONT_BOLD} fontSize={11} letterSpacing={1} color={t.subtle} textTransform="uppercase">
+      <Paragraph style={{ fontFamily: FONT_BOLD }} fontSize={11} letterSpacing={1} color={t.subtle} textTransform="uppercase">
         Add a workout
       </Paragraph>
 
@@ -337,7 +337,7 @@ export function AddWorkoutForm({ onAdd }) {
         borderRadius={10}
         backgroundColor={t.surfaceRaised}
         color={t.text}
-        fontFamily={FONT_REGULAR}
+        style={{ fontFamily: FONT_REGULAR }}
         placeholderTextColor={t.subtle}
       />
 
