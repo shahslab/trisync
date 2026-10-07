@@ -9,7 +9,7 @@ const FADE_MS = 350
 // Layout shared with the #boot-splash markup in public/index.html (keep the two in sync):
 // glyph 220px wide, 20px gap, then the 34px "TriSync" wordmark, centred on screen.
 export const SPLASH_GLYPH_WIDTH = 220
-const GLYPH_ASPECT = 413 / 565 // height / width of assets/brand/tri-glyph.png
+export const GLYPH_ASPECT = 413 / 565 // height / width of assets/brand/tri-glyph.png
 
 // Themed splash drawn over the app until `ready`; then it fades out and unmounts
 export default function SplashOverlay({ ready }) {

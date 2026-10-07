@@ -10,16 +10,17 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 
 import {
   useFonts,
-  Manrope_400Regular,
-  Manrope_500Medium,
-  Manrope_600SemiBold,
-  Manrope_700Bold,
-  Manrope_800ExtraBold,
-} from '@expo-google-fonts/manrope'
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from '@expo-google-fonts/plus-jakarta-sans'
 
 import TrainingCalendarScreen from './src/screens/TrainingCalendarScreen'
 import TodaysActivitiesScreen from './src/screens/TodaysActivitiesScreen'
 import TrainingHeaderMenu from './src/components/TrainingHeaderMenu'
+import HeaderLogo from './src/components/HeaderLogo'
 import { TrainingProvider, useTraining } from './src/training/TrainingContext'
 import SplashOverlay from './src/components/SplashOverlay'
 import { StravaProvider } from './src/strava/StravaContext'
@@ -39,11 +40,11 @@ export default function App() {
 function AppShell() {
   const t = useTheme()
   const [fontsLoaded] = useFonts({
-    Manrope_400Regular,
-    Manrope_500Medium,
-    Manrope_600SemiBold,
-    Manrope_700Bold,
-    Manrope_800ExtraBold,
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
   })
 
   const screenOptions = useMemo(() => ({
@@ -51,6 +52,7 @@ function AppShell() {
     headerShadowVisible: false,
     headerTintColor: t.text,
     headerTitleStyle: { fontFamily: FONT_BOLD, color: t.text },
+    headerLeft: () => <HeaderLogo />,
     headerRight: () => <TrainingHeaderMenu />,
     // Transparent scenes let the gradient (drawn by AppBackground) show through
     sceneStyle: { backgroundColor: 'transparent' },

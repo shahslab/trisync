@@ -31,8 +31,14 @@ const isIOS = () => isWeb && (
   || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 )
 
+// Every iOS browser says "Safari" in its user agent, so rule out the others by name.
+// In-app browsers (Instagram, Gmail…) usually drop the "Safari" token altogether.
+const isIOSSafari = () => /Safari/.test(navigator.userAgent)
+  && !/CriOS|FxiOS|EdgiOS|OPiOS|GSA|DuckDuckGo|YaBrowser|FBAN|FBAV|Instagram|Line\//.test(navigator.userAgent)
+
+// 'ios' | 'ios-other' (an iOS browser that isn't Safari) | 'android' | 'desktop'
 export function installPlatform() {
-  if (isIOS()) return 'ios'
+  if (isIOS()) return isIOSSafari() ? 'ios' : 'ios-other'
   if (isWeb && /Android/.test(navigator.userAgent)) return 'android'
   return 'desktop'
 }
