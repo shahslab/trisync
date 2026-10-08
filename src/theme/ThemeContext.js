@@ -48,6 +48,11 @@ export function useAppearance() {
   return { appearance: ctx.appearance, setAppearance: ctx.setAppearance, gradients: GRADIENTS }
 }
 
+// 'imperial' | 'metric', for estimated workout distances
+export function useUnits() {
+  return useAppearance().appearance.units
+}
+
 // Diagonal gradient filling its parent; used behind the app and for settings swatches
 export function GradientFill({ colors, id, style }) {
   return (

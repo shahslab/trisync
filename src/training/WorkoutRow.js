@@ -4,11 +4,12 @@ import { Popover } from '@tamagui/popover'
 import { Pressable, Text, TextInput, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import {
-  TYPE_LIST, TYPE_ICONS, statusFor,
+  TYPE_LIST, TYPE_ICONS, statusFor, formatShortDay,
   FONT_REGULAR, FONT_SEMIBOLD, FONT_BOLD,
   notesInputStyle,
 } from './trainingUtils'
-import { useTheme } from '../theme/ThemeContext'
+import { useTheme, useUnits } from '../theme/ThemeContext'
+import { estimateDistance } from './distanceEstimate'
 import { useStrava } from '../strava/StravaContext'
 import { useTraining } from './TrainingContext'
 import ActivityGraphicModal from '../strava/ActivityGraphicModal'
@@ -59,7 +60,7 @@ function TypeIcon({ type, color }) {
   )
 }
 
-function RowMenu({ onEdit, onDelete }) {
+function RowMenu({ onEdit, onSwap, onDelete }) {
   const t = useTheme()
   const [open, setOpen] = useState(false)
 
@@ -90,6 +91,14 @@ function RowMenu({ onEdit, onDelete }) {
           >
             <Text style={{ fontFamily: FONT_SEMIBOLD, fontSize: 14, color: t.text }}>Edit</Text>
           </Pressable>
+          {onSwap && (
+            <Pressable
+              onPress={() => { setOpen(false); onSwap() }}
+              style={{ paddingVertical: 10, paddingHorizontal: 10 }}
+            >
+              <Text style={{ fontFamily: FONT_SEMIBOLD, fontSize: 14, color: t.text }}>Swap or move</Text>
+            </Pressable>
+          )}
           <Pressable
             onPress={() => { setOpen(false); onDelete() }}
             style={{ paddingVertical: 10, paddingHorizontal: 10 }}
@@ -155,6 +164,58 @@ function StravaSync({ workout, sync, onRun, onCancel, onShowGraphic }) {
   return null
 }
 
+const workoutLabel = (w) => (w.title ? `${w.type}: ${w.title}` : w.type)
+
+// Workouts that are done or linked to Strava stay on their day
+const isMovable = (w) => w.status === 'pending' && !w.stravaActivityId
+
+// Lists the other workouts in this plan week to swap with, and the week's days to move to
+function SwapPanel({ workout, onClose }) {
+  const t = useTheme()
+  const { workouts, planWeekDates, moveWorkout, swapWorkouts } = useTraining()
+  const weekDates = planWeekDates(workout.date)
+
+  // A brick's legs move together, so each brick day is offered once
+  const seenBrickDays = new Set()
+  const candidates = workouts
+    .filter((w) => w.date !== workout.date && weekDates.includes(w.date) && isMovable(w))
+    .filter((w) => {
+      if (w.type !== 'Brick') return true
+      if (seenBrickDays.has(w.date)) return false
+      seenBrickDays.add(w.date)
+      return true
+    })
+    .sort((a, b) => a.date.localeCompare(b.date))
+
+  return (
+    <YStack borderWidth={1} borderColor={t.border} borderRadius={12} backgroundColor={t.surfaceRaised} p="$3" gap="$2">
+      <Text style={smallTextStyle(t)}>
+        {workout.type === 'Brick' ? 'Both legs of this brick move together. ' : ''}Swap with a workout this week:
+      </Text>
+      <XStack gap="$2" flexWrap="wrap">
+        {candidates.length === 0 ? (
+          <Text style={smallTextStyle(t)}>No other workouts to swap with.</Text>
+        ) : candidates.map((w) => (
+          <Pill
+            key={w.id}
+            label={`${formatShortDay(w.date)} · ${w.type === 'Brick' ? 'Brick' : workoutLabel(w)}`}
+            onPress={() => { swapWorkouts(workout.id, w.id); onClose() }}
+          />
+        ))}
+      </XStack>
+      <Text style={smallTextStyle(t)}>Or move it to:</Text>
+      <XStack gap="$2" flexWrap="wrap">
+        {weekDates.filter((d) => d !== workout.date).map((d) => (
+          <Pill key={d} label={formatShortDay(d)} onPress={() => { moveWorkout(workout.id, d); onClose() }} />
+        ))}
+      </XStack>
+      <XStack>
+        <Pill label="Cancel" onPress={onClose} />
+      </XStack>
+    </YStack>
+  )
+}
+
 export function WorkoutRow({ workout, today, onUpdate, onDelete }) {
   const t = useTheme()
   const [isEditing, setIsEditing] = useState(false)
@@ -164,8 +225,15 @@ export function WorkoutRow({ workout, today, onUpdate, onDelete }) {
 
   const strava = useStrava()
   const { planRange, workouts, allWorkouts } = useTraining()
+  const units = useUnits()
   const [showGraphic, setShowGraphic] = useState(false)
+  const [isSwapping, setIsSwapping] = useState(false)
   const [sync, setSync] = useState(null) // { state: 'syncing' | 'none' | 'choose' | 'error', activities, message }
+
+  const distance = estimateDistance(workout, units)
+  // Only workouts in the current plan's range can move within their plan week
+  const canMove = !!planRange && workout.date >= planRange.start && workout.date <= planRange.raceDate
+    && (workout.type === 'Brick' ? workouts.filter((w) => w.type === 'Brick' && w.date === workout.date) : [workout]).every(isMovable)
 
   const status = statusFor(workout, today)
   const statusColor = t.status[status]
@@ -256,7 +324,7 @@ export function WorkoutRow({ workout, today, onUpdate, onDelete }) {
           <TypeIcon type={workout.type} color={statusColor} />
           <YStack flex={1} minWidth={0} flexShrink={1} gap="$0.5" pt="$1">
             <Text style={{ fontFamily: FONT_BOLD, fontSize: 14.5, color: t.text }}>
-              {workout.title ? `${workout.type}: ${workout.title}` : workout.type}
+              {workoutLabel(workout)}{distance ? ` ≈ ${distance}` : ''}
             </Text>
             {!!workout.notes && (
               <Text
@@ -275,9 +343,15 @@ export function WorkoutRow({ workout, today, onUpdate, onDelete }) {
         </XStack>
 
         <View style={{ flexShrink: 0 }}>
-          <RowMenu onEdit={startEdit} onDelete={() => onDelete(workout.id)} />
+          <RowMenu
+            onEdit={startEdit}
+            onSwap={canMove ? () => setIsSwapping(true) : null}
+            onDelete={() => onDelete(workout.id)}
+          />
         </View>
       </XStack>
+
+      {isSwapping && canMove && <SwapPanel workout={workout} onClose={() => setIsSwapping(false)} />}
 
       <XStack gap="$2">
         <Pill label="Not done" active={workout.status === 'pending'} color={t.status.upcoming} onPress={() => setStatus('pending')} />

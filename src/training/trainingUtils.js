@@ -106,6 +106,14 @@ export function formatLongDate(isoStr) {
   return `${dayName}, ${dayNum} ${monthName} ${year}`
 }
 
+const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+// e.g. "Tue 7"
+export function formatShortDay(isoStr) {
+  const d = new Date(`${isoStr}T00:00:00`)
+  return `${SHORT_DAYS[d.getDay()]} ${d.getDate()}`
+}
+
 function ordinalSuffix(day) {
   if (day >= 11 && day <= 13) return 'th'
   switch (day % 10) {

@@ -87,7 +87,8 @@ export const GRADIENTS = [
   { id: 'lavender', name: 'Lavender', base: 'light', colors: ['#e6dcfb', '#d3e4fb'] },
 ]
 
-export const DEFAULT_APPEARANCE = { mode: 'dark', gradientId: 'aurora' }
+// units ('imperial' | 'metric') sets how estimated workout distances are shown
+export const DEFAULT_APPEARANCE = { mode: 'dark', gradientId: 'aurora', units: 'imperial' }
 
 // appearance: { mode: 'dark' | 'light' | 'gradient', gradientId }
 export function themeFor({ mode, gradientId }) {

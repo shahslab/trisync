@@ -18,7 +18,7 @@ import { useInstallPrompt } from '../pwa/installPrompt'
 const itemStyle = { paddingVertical: 10, paddingHorizontal: 10 }
 
 export default function TrainingHeaderMenu() {
-  const { planRange, plans, activePlanId, startEditingPlan, startNewPlan } = useTraining()
+  const { planRange, plans, activePlanId, startNewPlan } = useTraining()
   const navigation = useNavigation()
   const strava = useStrava()
   const t = useTheme()
@@ -64,18 +64,6 @@ export default function TrainingHeaderMenu() {
           <YStack minWidth={180}>
             <Pressable onPress={choose(() => setPlansOpen(true))} style={itemStyle}>
               <Text style={itemText}>My Plans</Text>
-            </Pressable>
-
-            <Pressable
-              disabled={!planRange}
-              onPress={choose(() => {
-                // The plan form lives on the Calendar tab
-                startEditingPlan()
-                navigation.navigate('TrainingPlan')
-              })}
-              style={{ ...itemStyle, opacity: planRange ? 1 : 0.4 }}
-            >
-              <Text style={itemText}>Edit plan</Text>
             </Pressable>
 
             {calendarExportSupported && (

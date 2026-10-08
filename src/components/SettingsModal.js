@@ -15,6 +15,11 @@ const MODES = [
   { id: 'gradient', label: 'Gradient' },
 ]
 
+const UNITS = [
+  { id: 'imperial', label: 'Imperial (miles, yards)' },
+  { id: 'metric', label: 'Metric (km, metres)' },
+]
+
 function SectionLabel({ children }) {
   const t = useTheme()
   return (
@@ -220,6 +225,19 @@ export default function SettingsModal({ visible, onClose }) {
                   </Text>
                 </YStack>
               )}
+
+              <YStack gap="$2.5">
+                <SectionLabel>Units</SectionLabel>
+                <XStack gap="$2" flexWrap="wrap">
+                  {UNITS.map((u) => (
+                    <Pill key={u.id} label={u.label} active={appearance.units === u.id} onPress={() => setAppearance({ units: u.id })} />
+                  ))}
+                </XStack>
+                <Text style={{ fontFamily: FONT_REGULAR, fontSize: 12.5, lineHeight: 18, color: t.subtle }}>
+                  Timed workouts show an estimated distance, based on typical paces for their intensity.
+                  Swims set in metres are converted to yards in imperial.
+                </Text>
+              </YStack>
 
               <StravaSettings />
 

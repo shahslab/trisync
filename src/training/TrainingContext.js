@@ -37,6 +37,11 @@ const workoutsFromTemplate = (template, start) => template.workouts.map((w) => (
   status: 'pending',
 }))
 
+// The workouts that move together: a brick's legs stay on the same day
+const groupOf = (list, workout) => (workout.type === 'Brick'
+  ? list.filter((w) => w.type === 'Brick' && w.date === workout.date)
+  : [workout])
+
 const TrainingContext = createContext(null)
 
 export function TrainingProvider({ children }) {
@@ -172,6 +177,33 @@ export function TrainingProvider({ children }) {
     updateActiveWorkouts((prev) => prev.filter((w) => w.id !== id))
   }
 
+  // Moves a workout (with its brick partner) to another day
+  const moveWorkout = (id, date) => {
+    updateActiveWorkouts((prev) => {
+      const group = groupOf(prev, prev.find((w) => w.id === id)).map((w) => w.id)
+      return prev.map((w) => (group.includes(w.id) ? { ...w, date } : w))
+    })
+  }
+
+  // Swaps the days of two workouts (bricks move with both legs)
+  const swapWorkouts = (idA, idB) => {
+    updateActiveWorkouts((prev) => {
+      const a = prev.find((w) => w.id === idA)
+      const b = prev.find((w) => w.id === idB)
+      const groupA = groupOf(prev, a).map((w) => w.id)
+      const groupB = groupOf(prev, b).map((w) => w.id)
+      return prev.map((w) => (groupA.includes(w.id) ? { ...w, date: b.date } : groupB.includes(w.id) ? { ...w, date: a.date } : w))
+    })
+  }
+
+  // The current plan's days in the same plan week as date (weeks count from the plan's start)
+  const planWeekDates = (date) => {
+    if (!activePlan) return []
+    const first = subtractDays(activePlan.start, -Math.floor(daysBetween(activePlan.start, date) / 7) * 7)
+    return Array.from({ length: 7 }, (_, i) => subtractDays(first, -i))
+      .filter((d) => d >= activePlan.start && d <= activePlan.raceDate)
+  }
+
   const value = {
     today,
     plans,
@@ -191,6 +223,9 @@ export function TrainingProvider({ children }) {
     addWorkout,
     updateWorkout,
     deleteWorkout,
+    moveWorkout,
+    swapWorkouts,
+    planWeekDates,
   }
 
   if (!loaded) return <View style={{ flex: 1 }} />
