@@ -40,6 +40,9 @@ export function isValidCalendarDate(isoStr) {
   return !Number.isNaN(d.getTime()) && isoStr === toIsoDate(d)
 }
 
+// Which week of a plan a date falls in, counting from 1 at the plan's start date
+export const planWeekOf = (startIso, dateIso) => Math.floor(daysBetween(startIso, dateIso) / 7) + 1
+
 export function daysBetween(startIso, endIso) {
   const start = new Date(`${startIso}T00:00:00`)
   const end = new Date(`${endIso}T00:00:00`)

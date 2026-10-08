@@ -7,7 +7,7 @@ import { Calendar, LocaleConfig } from 'react-native-calendars'
 import { useTraining, isLogged } from '../training/TrainingContext'
 import { Pill, WorkoutRow, AddWorkoutForm } from '../training/WorkoutRow'
 import {
-  isoToDisplay, displayToIso, formatLongDate, formatOrdinalDate, daysBetween, subtractDays,
+  isoToDisplay, displayToIso, formatLongDate, formatOrdinalDate, daysBetween, subtractDays, planWeekOf, toIsoDate,
   FONT_REGULAR, FONT_SEMIBOLD, FONT_BOLD, FONT_EXTRABOLD,
 } from '../training/trainingUtils'
 import { useTheme } from '../theme/ThemeContext'
@@ -28,20 +28,38 @@ LocaleConfig.defaultLocale = 'en'
 
 const CALENDAR_DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
-function WeekdayRow() {
+// The Monday on or before a date
+const mondayOf = (iso) => subtractDays(iso, (new Date(`${iso}T00:00:00`).getDay() + 6) % 7)
+
+// Space left of the plan calendar's rows for the plan week labels (W1, W2, ...)
+const WEEK_GUTTER = 32
+
+// Day names above a calendar, in the same seven columns as its rows (the library's own
+// padding is 5 on each side, plus the week label gutter when there is one)
+function WeekdayRow({ gutter = 0 }) {
   const t = useTheme()
   return (
-    <XStack justifyContent="space-between" px="$0.5" mb="$1">
-      {CALENDAR_DAY_LABELS.map((label) => (
-        <YStack key={label} width={32} alignItems="center">
-          <Text style={{ fontFamily: FONT_SEMIBOLD, fontSize: 11, color: t.subtle }}>{label}</Text>
+    <XStack style={{ paddingLeft: 5 + gutter, paddingRight: 5 }} mb="$1">
+      {CALENDAR_DAY_LABELS.map((label, i) => (
+        <YStack key={label} flex={1} alignItems="center">
+          <YStack width={32} alignItems="center" style={{ position: 'relative' }}>
+            <Text style={{ fontFamily: FONT_SEMIBOLD, fontSize: 11, color: t.subtle }}>{label}</Text>
+            {gutter > 0 && i === 0 && (
+              // Placed like DayCell's week labels, so it sits above them
+              <Text style={{ position: 'absolute', right: 32 + 12, fontFamily: FONT_SEMIBOLD, fontSize: 11, color: t.subtle }}>Wk</Text>
+            )}
+          </YStack>
         </YStack>
       ))}
     </XStack>
   )
 }
 
-const calendarThemeFor = (t) => ({
+const calendarThemeFor = (t, gutter = 0) => ({
+  // Replaces the library's week row style, so it repeats its defaults
+  'stylesheet.calendar.main': {
+    week: { marginVertical: 7, flexDirection: 'row', justifyContent: 'space-around', paddingLeft: gutter },
+  },
   backgroundColor: 'transparent',
   calendarBackground: 'transparent',
   textSectionTitleColor: 'transparent',
@@ -63,6 +81,7 @@ function DayCell({ date, state, marking, onPress }) {
   const isRace = marking?.isRace
   const isInPlan = !!marking?.inPlan
   const count = marking?.count || 0
+  const weekLabel = marking?.weekLabel // set on the Monday of each row that overlaps the plan
 
   const ringColor = isRace ? t.race : status ? t.status[status] : null
   const isFilled = status === 'done' || isRace
@@ -123,6 +142,14 @@ function DayCell({ date, state, marking, onPress }) {
         <Text style={{ fontFamily: FONT_BOLD, fontSize: 13, color: textColor, textAlign: 'center' }}>
           {date.day}
         </Text>
+        {!!weekLabel && (
+          // Drawn in the gutter to the left of the row
+          <Text
+            style={{ position: 'absolute', right: 32 + 12, top: 0, height: 32, lineHeight: 32, fontFamily: FONT_SEMIBOLD, fontSize: 11, color: weekLabel.current ? t.primary : t.subtle }}
+          >
+            {weekLabel.text}
+          </Text>
+        )}
       </YStack>
 
       {count > 1 && (
@@ -239,6 +266,7 @@ function SwitchPlanWarning({ workouts, today }) {
 export default function TrainingCalendarScreen({ navigation }) {
   const t = useTheme()
   const calendarTheme = useMemo(() => calendarThemeFor(t), [t])
+  const planCalendarTheme = useMemo(() => calendarThemeFor(t, WEEK_GUTTER), [t])
   const {
     today, planRange, createPlan, editingPlan, creatingPlan, cancelEditingPlan,
     workouts, addWorkout, updateWorkout, deleteWorkout,
@@ -254,6 +282,16 @@ export default function TrainingCalendarScreen({ navigation }) {
   const [creating, setCreating] = useState(false)
 
   const [selectedDate, setSelectedDate] = useState(today)
+  const [visibleMonth, setVisibleMonth] = useState(today.slice(0, 7)) // 'YYYY-MM' shown in the plan calendar
+
+  // The week column only shows on months whose rows (including the greyed days either side) touch the plan
+  const showWeeks = useMemo(() => {
+    if (!planRange) return false
+    const [year, month] = visibleMonth.split('-').map(Number)
+    const firstRow = mondayOf(`${visibleMonth}-01`)
+    const lastRowEnd = subtractDays(mondayOf(toIsoDate(new Date(year, month, 0))), -6)
+    return firstRow <= planRange.raceDate && lastRowEnd >= planRange.start
+  }, [visibleMonth, planRange])
 
   // Editing starts the form from the current plan; a new plan starts it blank
   useEffect(() => {
@@ -340,12 +378,30 @@ export default function TrainingCalendarScreen({ navigation }) {
         cursor = subtractDays(cursor, -1) // step forward one day
       }
       marks[planRange.raceDate] = { ...(marks[planRange.raceDate] || {}), isRace: true }
+
+      // Label each calendar row (Monday to Sunday) with its plan week. Plan weeks start on the
+      // plan's start day, so when that isn't a Monday a row spans two; it takes the one with more days.
+      const todayWeek = today >= planRange.start && today <= planRange.raceDate ? planWeekOf(planRange.start, today) : null
+      let monday = mondayOf(planRange.start)
+      while (showWeeks && monday <= planRange.raceDate) {
+        const counts = {}
+        for (let i = 0; i < 7; i++) {
+          const day = subtractDays(monday, -i)
+          if (day >= planRange.start && day <= planRange.raceDate) {
+            const week = planWeekOf(planRange.start, day)
+            counts[week] = (counts[week] || 0) + 1
+          }
+        }
+        const week = Number(Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a - b)[0])
+        marks[monday] = { ...(marks[monday] || {}), weekLabel: { text: `W${week}`, current: week === todayWeek } }
+        monday = subtractDays(monday, -7)
+      }
     }
 
     marks[selectedDate] = { ...(marks[selectedDate] || {}), selected: true }
 
     return marks
-  }, [workouts, selectedDate, today, planRange])
+  }, [workouts, selectedDate, today, planRange, showWeeks])
 
   const dayWorkouts = workouts.filter((w) => w.date === selectedDate)
   const isRaceDay = planRange && selectedDate === planRange.raceDate
@@ -474,12 +530,15 @@ export default function TrainingCalendarScreen({ navigation }) {
       </Card>
 
       <Card backgroundColor={t.surface} borderColor={t.border} borderWidth={1} borderRadius={20} p="$3" style={t.cardShadow}>
-        <WeekdayRow />
+        <WeekdayRow gutter={showWeeks ? WEEK_GUTTER : 0} />
         <Calendar
           markedDates={markedDates}
           firstDay={1}
-          key={t.name}
-          theme={calendarTheme}
+          // The library reads its theme once, so adding or removing the week column remounts it on the same month
+          key={`${t.name}-${showWeeks}`}
+          current={`${visibleMonth}-01`}
+          onMonthChange={(month) => setVisibleMonth(month.dateString.slice(0, 7))}
+          theme={showWeeks ? planCalendarTheme : calendarTheme}
           dayComponent={DayCell}
           onDayPress={(day) => setSelectedDate(day.dateString)}
         />
@@ -497,6 +556,11 @@ export default function TrainingCalendarScreen({ navigation }) {
         <Text style={{ fontFamily: FONT_EXTRABOLD, fontSize: 17, color: t.text }}>
           {formatLongDate(selectedDate)} {isRaceDay ? '· Race Day' : ''}
         </Text>
+        {selectedDate >= planRange.start && selectedDate <= planRange.raceDate && (
+          <Text style={{ fontFamily: FONT_SEMIBOLD, fontSize: 13, color: t.subtle, marginTop: -8 }}>
+            Week {planWeekOf(planRange.start, selectedDate)} of {planRange.weeks}
+          </Text>
+        )}
 
         {dayWorkouts.length === 0 ? (
           <Paragraph style={{ fontFamily: FONT_REGULAR }} color={t.subtle} fontSize={13}>No workouts scheduled yet.</Paragraph>
