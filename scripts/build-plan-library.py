@@ -27,6 +27,9 @@ NAME_FIXES = {
     'bike (optional)': 'Optional Bike',
 }
 
+# The source details point to video guides that aren't part of the plans
+GUIDE_NOTE = re.compile(r"P?Please refer to the (?:video )?guide in \w+'s Tips(?: in Week 1)?\.*")
+
 
 def clean_name(raw):
     name = re.sub(r'\s+', ' ', raw).strip()
@@ -112,7 +115,7 @@ def convert(path):
             'name': name,
             'duration': clean_duration(r['Duration/Distance'], 'Swim' if wtype == 'Swim' else wtype),
             'intensity': clean_intensity(r['Intensity']),
-            'details': re.sub(r'\s+', ' ', r['Details']).strip(),
+            'details': GUIDE_NOTE.sub('', re.sub(r'\s+', ' ', r['Details'])).strip(),
         })
 
     # A run off the bike and that day's ride form a brick; without a ride it's a plain run
