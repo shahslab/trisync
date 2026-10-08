@@ -4,7 +4,7 @@ import { Pressable, Text, ScrollView } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Calendar, LocaleConfig } from 'react-native-calendars'
 
-import { useTraining } from '../training/TrainingContext'
+import { useTraining, isLogged } from '../training/TrainingContext'
 import { Pill, WorkoutRow, AddWorkoutForm } from '../training/WorkoutRow'
 import {
   isoToDisplay, displayToIso, formatLongDate, formatOrdinalDate, daysBetween, subtractDays,
@@ -194,6 +194,48 @@ function RaceDatePicker({ value, onChange, today, calendarTheme }) {
   )
 }
 
+// Where the plan being edited came from: a library plan, an imported file or the user's own
+function PlanSourceNote({ source }) {
+  const t = useTheme()
+  const { icon, heading, detail } = source.kind === 'library'
+    ? { icon: 'document-text-outline', heading: `${source.distance} ${source.level} · ${source.weeks} weeks`, detail: 'From Available Plans.' }
+    : source.kind === 'import'
+    ? { icon: 'document-attach-outline', heading: source.name || source.fileName, detail: `Imported from ${source.fileName}.` }
+    : { icon: 'create-outline', heading: 'Your own plan', detail: 'Started blank, with workouts you added yourself.' }
+  return (
+    <YStack gap="$2">
+      <Paragraph style={{ fontFamily: FONT_SEMIBOLD }} fontSize={11} letterSpacing={0.6} color={t.subtle} textTransform="uppercase">Plan</Paragraph>
+      <YStack backgroundColor={t.surfaceRaised} borderColor={t.border} borderWidth={1} borderRadius={14} p="$3" gap="$1.5">
+        <XStack alignItems="center" gap="$2">
+          <Ionicons name={icon} size={16} color={t.primary} />
+          <Text style={{ fontFamily: FONT_BOLD, fontSize: 14, color: t.text, flexShrink: 1 }}>{heading}</Text>
+        </XStack>
+        <Text style={{ fontFamily: FONT_REGULAR, fontSize: 12.5, lineHeight: 18, color: t.subtle }}>{detail}</Text>
+      </YStack>
+    </YStack>
+  )
+}
+
+// Shown before switching an existing plan: what's kept and what's replaced
+function SwitchPlanWarning({ workouts, today }) {
+  const t = useTheme()
+  const logged = workouts.filter(isLogged(today)).length
+  const replaced = workouts.length - logged
+  const n = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`
+  return (
+    <XStack gap="$2.5" p="$3" borderRadius={14} borderWidth={1} borderColor={t.status.partial} backgroundColor={t.surfaceRaised}>
+      <Ionicons name="warning-outline" size={18} color={t.status.partial} style={{ marginTop: 1 }} />
+      <YStack flex={1} gap="$1.5">
+        <Text style={{ fontFamily: FONT_BOLD, fontSize: 14, color: t.text }}>Switching replaces your upcoming workouts</Text>
+        <Text style={{ fontFamily: FONT_REGULAR, fontSize: 12.5, lineHeight: 18, color: t.subtle }}>
+          {n(replaced, 'workout')} from today on will be replaced by the new plan's.
+          {logged > 0 && ` Your ${n(logged, 'logged workout')} (done, partial or missed) stay as they are, along with any Strava links, so earlier weeks will still show the old plan's sessions.`}
+        </Text>
+      </YStack>
+    </XStack>
+  )
+}
+
 export default function TrainingCalendarScreen({ navigation }) {
   const t = useTheme()
   const calendarTheme = useMemo(() => calendarThemeFor(t), [t])
@@ -208,6 +250,7 @@ export default function TrainingCalendarScreen({ navigation }) {
   const [setupError, setSetupError] = useState('')
   const [librarySelection, setLibrarySelection] = useState(null) // { distance, level, weeks } from Available Plans
   const [importedPlan, setImportedPlan] = useState(null) // { plan, fileName } from Import a Plan
+  const [switching, setSwitching] = useState(false) // editing: choosing a different plan
   const [creating, setCreating] = useState(false)
 
   const [selectedDate, setSelectedDate] = useState(today)
@@ -225,6 +268,7 @@ export default function TrainingCalendarScreen({ navigation }) {
     }
     setLibrarySelection(null)
     setImportedPlan(null)
+    setSwitching(false)
     setSetupError('')
   }, [editingPlan, creatingPlan])
 
@@ -244,9 +288,10 @@ export default function TrainingCalendarScreen({ navigation }) {
   }
 
   const handleCreatePlan = async () => {
-    let template = importedPlan && !editingPlan ? importedPlan.plan : undefined
-    const entry = librarySelection && findEntry(librarySelection)
-    if (entry && !editingPlan) {
+    const choosing = !editingPlan || switching
+    let template = importedPlan && choosing ? importedPlan.plan : undefined
+    const entry = choosing && librarySelection && findEntry(librarySelection)
+    if (entry) {
       setCreating(true)
       try {
         template = await loadLibraryPlan(entry)
@@ -257,7 +302,12 @@ export default function TrainingCalendarScreen({ navigation }) {
         setCreating(false)
       }
     }
-    const result = createPlan({ raceNameInput, raceDateInput, weeksInput, template })
+    const source = entry
+      ? { kind: 'library', distance: entry.distance, level: entry.level, weeks: entry.weeks }
+      : template
+      ? { kind: 'import', fileName: importedPlan.fileName, name: importedPlan.plan.name }
+      : editingPlan ? undefined : { kind: 'manual' }
+    const result = createPlan({ raceNameInput, raceDateInput, weeksInput, template, source })
     if (result?.error) {
       setSetupError(result.error)
       return
@@ -300,6 +350,9 @@ export default function TrainingCalendarScreen({ navigation }) {
   const dayWorkouts = workouts.filter((w) => w.date === selectedDate)
   const isRaceDay = planRange && selectedDate === planRange.raceDate
 
+  // The library and import pickers: always for a new plan, and when switching while editing
+  const choosingPlan = !editingPlan || switching
+
   if (!planRange || editingPlan || creatingPlan) {
     // Cancel goes back to the current plan, so only offer it when there is one
     const canCancel = !!planRange && (editingPlan || creatingPlan)
@@ -326,18 +379,39 @@ export default function TrainingCalendarScreen({ navigation }) {
             <RaceDatePicker value={raceDateInput} onChange={setRaceDateInput} today={today} calendarTheme={calendarTheme} />
           </YStack>
 
-          {planLibrarySupported && !editingPlan && (
+          {editingPlan && (
+            <YStack gap="$2.5">
+              {planRange.source && <PlanSourceNote source={planRange.source} />}
+              {planLibrarySupported && (
+                <XStack>
+                  <Pill
+                    label={switching ? 'Keep this plan' : 'Change plan'}
+                    onPress={() => { setSwitching((s) => !s); chooseLibraryPlan(null) }}
+                  />
+                </XStack>
+              )}
+            </YStack>
+          )}
+
+          {planLibrarySupported && choosingPlan && (
             <PlanLibraryPicker
               selection={librarySelection}
               onChange={chooseLibraryPlan}
               imported={!!importedPlan}
-              raceIso={displayToIso(raceDateInput)}
+              // When switching, a plan that would start in the past is fine: only its days from today on are used
+              raceIso={editingPlan ? null : displayToIso(raceDateInput)}
               today={today}
+              noneText={editingPlan ? 'Keep the workouts you have now.' : undefined}
+              defaultWeeks={editingPlan ? planRange.weeks : undefined}
             />
           )}
 
+          {editingPlan && (librarySelection || importedPlan) && (
+            <SwitchPlanWarning workouts={workouts} today={today} />
+          )}
+
           {/* Importing is the alternative to a library plan, so it only shows with "None" chosen */}
-          {planImportSupported && !editingPlan && !librarySelection && (
+          {planImportSupported && choosingPlan && !librarySelection && (
             <PlanImportPicker
               imported={importedPlan}
               onChange={chooseImportedPlan}
@@ -349,7 +423,7 @@ export default function TrainingCalendarScreen({ navigation }) {
 
           <YStack gap="$2">
             <Paragraph style={{ fontFamily: FONT_SEMIBOLD }} fontSize={11} letterSpacing={0.6} color={t.subtle} textTransform="uppercase">Training weeks</Paragraph>
-            {(librarySelection || importedPlan) && !editingPlan ? (
+            {(librarySelection || importedPlan) && choosingPlan ? (
               // A library or imported plan has a fixed length
               <Text style={{ fontFamily: FONT_REGULAR, fontSize: 15, color: t.text, paddingVertical: 4 }}>
                 {(librarySelection || importedPlan.plan).weeks} week{(librarySelection || importedPlan.plan).weeks === 1 ? '' : 's'}, set by the plan
@@ -362,7 +436,7 @@ export default function TrainingCalendarScreen({ navigation }) {
           {!!setupError && <Paragraph style={{ fontFamily: FONT_REGULAR }} color={t.danger} fontSize={13}>{setupError}</Paragraph>}
 
           <XStack gap="$2">
-            <Pill label={editingPlan ? 'Save Plan' : creating ? 'Loading plan…' : 'Create Plan'} variant="primary" onPress={creating ? () => {} : handleCreatePlan} />
+            <Pill label={editingPlan ? (choosingPlan && (librarySelection || importedPlan) ? 'Switch Plan' : 'Save Plan') : creating ? 'Loading plan…' : 'Create Plan'} variant="primary" onPress={creating ? () => {} : handleCreatePlan} />
             {canCancel && <Pill label="Cancel" onPress={cancelEditingPlan} />}
           </XStack>
         </Card>

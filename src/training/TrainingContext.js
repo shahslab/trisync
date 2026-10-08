@@ -5,7 +5,9 @@ import {
   todayStr, displayToIso, isValidCalendarDate, daysBetween, subtractDays, makeId,
 } from './trainingUtils'
 
-// { plans: [{ id, raceName, raceDate, start, weeks, workouts }], activePlanId }
+// { plans: [{ id, raceName, raceDate, start, weeks, source, workouts }], activePlanId }
+// source: where a plan's workouts came from, shown when editing it (missing on plans made before it existed):
+// { kind: 'library', distance, level, weeks } | { kind: 'import', fileName, name } | { kind: 'manual' }
 export const STORAGE_KEY = 'trisync/training/v2'
 const V1_STORAGE_KEY = 'trisync/training/v1' // one plan: { planRange, workouts }
 const LEGACY_STORAGE_KEY = 'oneplan/training/v1' // before the OnePlan → TriSync rename
@@ -36,6 +38,10 @@ const workoutsFromTemplate = (template, start) => template.workouts.map((w) => (
   notes: w.notes,
   status: 'pending',
 }))
+
+// Workouts that are part of the training record: marked done or partial, or missed (still pending on a
+// past day). Switching plans keeps these and replaces the rest.
+export const isLogged = (today) => (w) => w.status !== 'pending' || w.date < today
 
 // The workouts that move together: a brick's legs stay on the same day
 const groupOf = (list, workout) => (workout.type === 'Brick'
@@ -77,7 +83,7 @@ export function TrainingProvider({ children }) {
 
   const activePlan = plans.find((p) => p.id === activePlanId) || null
   const planRange = useMemo(() => (activePlan
-    ? { start: activePlan.start, raceDate: activePlan.raceDate, raceName: activePlan.raceName, weeks: activePlan.weeks }
+    ? { start: activePlan.start, raceDate: activePlan.raceDate, raceName: activePlan.raceName, weeks: activePlan.weeks, source: activePlan.source }
     : null), [activePlan])
   const workouts = activePlan?.workouts || []
 
@@ -87,8 +93,10 @@ export function TrainingProvider({ children }) {
   }
 
   // template: an optional library or imported plan ({ weeks, workouts: [{ week, day, type, title, notes }] })
-  // whose workouts fill a new plan, placed so its final day (race day) falls on the race date
-  const createPlan = ({ raceNameInput, raceDateInput, weeksInput, template }) => {
+  // whose workouts fill a new plan, placed so its final day (race day) falls on the race date.
+  // Editing with a template switches the plan: workouts already logged (done, partial, or missed
+  // because their day has passed) stay, and the rest are replaced by the template's from today on.
+  const createPlan = ({ raceNameInput, raceDateInput, weeksInput, template, source }) => {
     const raceIso = displayToIso(raceDateInput)
     const weeks = template ? template.weeks : parseInt(weeksInput, 10)
 
@@ -103,6 +111,7 @@ export function TrainingProvider({ children }) {
     }
 
     const editing = editingPlan && activePlan
+    if (template && editing) return switchPlan({ raceIso, raceName: raceNameInput.trim(), template, source })
     if (template && !editing && subtractDays(raceIso, weeks * 7 - 1) < today) {
       return { error: `This ${weeks}-week plan would have to start before today. Pick a later race date or a shorter plan.` }
     }
@@ -116,13 +125,28 @@ export function TrainingProvider({ children }) {
     if (editing) {
       setPlans((prev) => prev.map((p) => (p.id === activePlanId ? { ...p, ...fields } : p)).sort(byRaceDate))
     } else {
-      const plan = { id: makeId(), ...fields, workouts: template ? workoutsFromTemplate(template, start) : [] }
+      const plan = { id: makeId(), ...fields, source, workouts: template ? workoutsFromTemplate(template, start) : [] }
       setPlans((prev) => [...prev, plan].sort(byRaceDate))
       setActivePlanId(plan.id)
     }
     setEditingPlan(false)
     setCreatingPlan(false)
 
+    return { start }
+  }
+
+  const switchPlan = ({ raceIso, raceName, template, source }) => {
+    const templateStart = subtractDays(raceIso, template.weeks * 7 - 1)
+    // A plan that has begun keeps its start, so logged workouts stay inside it and week numbers don't shift
+    const start = activePlan.start < today ? activePlan.start : (templateStart < today ? today : templateStart)
+    const weeks = Math.ceil((daysBetween(start, raceIso) + 1) / 7)
+    const kept = activePlan.workouts.filter(isLogged(today))
+    const added = workoutsFromTemplate(template, templateStart).filter((w) => w.date >= today && w.date >= start)
+    const workouts = [...kept, ...added].sort((a, b) => a.date.localeCompare(b.date))
+    setPlans((prev) => prev.map((p) => (p.id === activePlanId
+      ? { ...p, start, raceDate: raceIso, raceName, weeks, source, workouts }
+      : p)).sort(byRaceDate))
+    setEditingPlan(false)
     return { start }
   }
 

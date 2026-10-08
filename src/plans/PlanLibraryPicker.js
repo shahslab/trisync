@@ -35,7 +35,8 @@ function Choice({ label, active, disabled, onPress }) {
 // "Available Plans" on the new-plan form. `selection` is { distance, level, weeks } or null;
 // `raceIso` (when chosen) greys out lengths that would have to start before today.
 // "None" also covers an imported plan file; `imported` hides its blank-plan description then.
-export default function PlanLibraryPicker({ selection, onChange, raceIso, today, imported }) {
+// `noneText` describes what "None" means on this form; `defaultWeeks` is the length picked first, if it fits.
+export default function PlanLibraryPicker({ selection, onChange, raceIso, today, imported, noneText, defaultWeeks }) {
   const t = useTheme()
   const label = { fontFamily: FONT_SEMIBOLD, fontSize: 11, letterSpacing: 0.6, color: t.subtle, textTransform: 'uppercase' }
   const body = { fontFamily: FONT_REGULAR, fontSize: 12.5, lineHeight: 18, color: t.subtle }
@@ -46,7 +47,8 @@ export default function PlanLibraryPicker({ selection, onChange, raceIso, today,
   const start = entry && raceIso ? subtractDays(raceIso, entry.weeks * 7 - 1) : null
 
   const pick = (changes) => {
-    const next = { level: 'Beginner', weeks: LENGTHS.find(fits) ?? 8, ...selection, ...changes }
+    const firstWeeks = LENGTHS.includes(defaultWeeks) && fits(defaultWeeks) ? defaultWeeks : LENGTHS.find(fits) ?? 8
+    const next = { level: 'Beginner', weeks: firstWeeks, ...selection, ...changes }
     onChange(next.distance ? next : null)
   }
 
@@ -64,7 +66,7 @@ export default function PlanLibraryPicker({ selection, onChange, raceIso, today,
 
       {!selection && !imported && (
         <Text style={body}>
-          You'll start with an empty plan and add your own workouts day by day on the calendar.
+          {noneText || "You'll start with an empty plan and add your own workouts day by day on the calendar."}
         </Text>
       )}
 
