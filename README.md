@@ -44,8 +44,12 @@ A new Strava API app can be used by one athlete, its owner. That's all TriSync n
 
 - **Matching:** when you mark a workout Done or Partial, TriSync looks for a Strava activity on the same day with a matching sport (Run → Run, Bike → Ride, and so on). If there are none or several, it asks you to pick one.
 - **Title and description:** the activity is renamed to `TriSync: <your workout title>`, and its description is set to your workout notes.
-- **Bricks:** add two Brick workouts on the same day, one per leg. They're labelled `Brick Part 1` and `Brick Part 2` in their descriptions.
+- **Bricks:** add two Brick workouts on the same day, one per leg. When you mark each one, TriSync asks which activity it was, then labels them `Brick Part 1` and `Brick Part 2` in the order you did them on Strava.
 - **Graphic:** a synced workout can make a lap-chart image you can download. You add it to the Strava post yourself, because Strava doesn't let apps attach photos.
+
+## Training plans
+
+When you create a plan, **Available Plans** lets you start from a free triathlon plan: Sprint, Olympic, 70.3 or 140.6, at Beginner, Intermediate or Advanced level, over 8 or 12 weeks. TriSync places the plan so it finishes on your race day.
 
 ## Hosting your own copy
 

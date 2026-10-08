@@ -27,6 +27,16 @@ export function normalizeTrainingData(data) {
 
 const byRaceDate = (a, b) => a.raceDate.localeCompare(b.raceDate)
 
+// Library workouts are numbered by week (from 1) and day (0 = the plan's first day)
+const workoutsFromTemplate = (template, start) => template.workouts.map((w) => ({
+  id: makeId(),
+  date: subtractDays(start, -((w.week - 1) * 7 + w.day)),
+  type: w.type,
+  title: w.title,
+  notes: w.notes,
+  status: 'pending',
+}))
+
 const TrainingContext = createContext(null)
 
 export function TrainingProvider({ children }) {
@@ -71,9 +81,11 @@ export function TrainingProvider({ children }) {
     setPlans((prev) => prev.map((p) => (p.id === activePlanId ? { ...p, workouts: fn(p.workouts) } : p)))
   }
 
-  const createPlan = ({ raceNameInput, raceDateInput, weeksInput }) => {
+  // template: an optional library plan ({ weeks, workouts: [{ week, day, type, title, notes }] })
+  // whose workouts fill a new plan, placed so its final day (race day) falls on the race date
+  const createPlan = ({ raceNameInput, raceDateInput, weeksInput, template }) => {
     const raceIso = displayToIso(raceDateInput)
-    const weeks = parseInt(weeksInput, 10)
+    const weeks = template ? template.weeks : parseInt(weeksInput, 10)
 
     if (!raceIso || !isValidCalendarDate(raceIso)) {
       return { error: 'Choose a race date.' }
@@ -86,6 +98,9 @@ export function TrainingProvider({ children }) {
     }
 
     const editing = editingPlan && activePlan
+    if (template && !editing && subtractDays(raceIso, weeks * 7 - 1) < today) {
+      return { error: `This ${weeks}-week plan would have to start before today. Pick a later race date or a shorter plan.` }
+    }
     // New plans can't start in the past. An edited plan that has already begun keeps
     // its original start rather than jumping to today.
     const earliestStart = editing && activePlan.start < today ? activePlan.start : today
@@ -96,7 +111,7 @@ export function TrainingProvider({ children }) {
     if (editing) {
       setPlans((prev) => prev.map((p) => (p.id === activePlanId ? { ...p, ...fields } : p)).sort(byRaceDate))
     } else {
-      const plan = { id: makeId(), ...fields, workouts: [] }
+      const plan = { id: makeId(), ...fields, workouts: template ? workoutsFromTemplate(template, start) : [] }
       setPlans((prev) => [...prev, plan].sort(byRaceDate))
       setActivePlanId(plan.id)
     }

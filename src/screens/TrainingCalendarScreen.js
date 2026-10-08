@@ -11,6 +11,7 @@ import {
   FONT_REGULAR, FONT_SEMIBOLD, FONT_BOLD, FONT_EXTRABOLD,
 } from '../training/trainingUtils'
 import { useTheme } from '../theme/ThemeContext'
+import PlanLibraryPicker, { planLibrarySupported, loadLibraryPlan, findEntry } from '../plans/PlanLibraryPicker'
 
 LocaleConfig.locales['en'] = {
   monthNames: [
@@ -203,6 +204,8 @@ export default function TrainingCalendarScreen({ navigation }) {
   const [raceNameInput, setRaceNameInput] = useState('')
   const [weeksInput, setWeeksInput] = useState('12')
   const [setupError, setSetupError] = useState('')
+  const [librarySelection, setLibrarySelection] = useState(null) // { distance, level, weeks } from Available Plans
+  const [creating, setCreating] = useState(false)
 
   const [selectedDate, setSelectedDate] = useState(today)
 
@@ -217,11 +220,25 @@ export default function TrainingCalendarScreen({ navigation }) {
       setRaceDateInput('')
       setWeeksInput('12')
     }
+    setLibrarySelection(null)
     setSetupError('')
   }, [editingPlan, creatingPlan])
 
-  const handleCreatePlan = () => {
-    const result = createPlan({ raceNameInput, raceDateInput, weeksInput })
+  const handleCreatePlan = async () => {
+    let template
+    const entry = librarySelection && findEntry(librarySelection)
+    if (entry && !editingPlan) {
+      setCreating(true)
+      try {
+        template = await loadLibraryPlan(entry)
+      } catch (e) {
+        setSetupError(e.message)
+        return
+      } finally {
+        setCreating(false)
+      }
+    }
+    const result = createPlan({ raceNameInput, raceDateInput, weeksInput, template })
     if (result?.error) {
       setSetupError(result.error)
       return
@@ -290,15 +307,31 @@ export default function TrainingCalendarScreen({ navigation }) {
             <RaceDatePicker value={raceDateInput} onChange={setRaceDateInput} today={today} calendarTheme={calendarTheme} />
           </YStack>
 
+          {planLibrarySupported && !editingPlan && (
+            <PlanLibraryPicker
+              selection={librarySelection}
+              onChange={(next) => { setLibrarySelection(next); setSetupError('') }}
+              raceIso={displayToIso(raceDateInput)}
+              today={today}
+            />
+          )}
+
           <YStack gap="$2">
             <Paragraph style={{ fontFamily: FONT_SEMIBOLD }} fontSize={11} letterSpacing={0.6} color={t.subtle} textTransform="uppercase">Training weeks</Paragraph>
-            <Input value={weeksInput} onChangeText={setWeeksInput} keyboardType="numeric" placeholder="12" placeholderTextColor={t.subtle} borderColor={t.border} borderRadius={12} backgroundColor={t.surfaceRaised} color={t.text} style={{ fontFamily: FONT_REGULAR }} />
+            {librarySelection && !editingPlan ? (
+              // A library plan has a fixed length
+              <Text style={{ fontFamily: FONT_REGULAR, fontSize: 15, color: t.text, paddingVertical: 4 }}>
+                {librarySelection.weeks} weeks, set by the plan
+              </Text>
+            ) : (
+              <Input value={weeksInput} onChangeText={setWeeksInput} keyboardType="numeric" placeholder="12" placeholderTextColor={t.subtle} borderColor={t.border} borderRadius={12} backgroundColor={t.surfaceRaised} color={t.text} style={{ fontFamily: FONT_REGULAR }} />
+            )}
           </YStack>
 
           {!!setupError && <Paragraph style={{ fontFamily: FONT_REGULAR }} color={t.danger} fontSize={13}>{setupError}</Paragraph>}
 
           <XStack gap="$2">
-            <Pill label={editingPlan ? 'Save Plan' : 'Create Plan'} variant="primary" onPress={handleCreatePlan} />
+            <Pill label={editingPlan ? 'Save Plan' : creating ? 'Loading plan…' : 'Create Plan'} variant="primary" onPress={creating ? () => {} : handleCreatePlan} />
             {canCancel && <Pill label="Cancel" onPress={cancelEditingPlan} />}
           </XStack>
         </Card>
