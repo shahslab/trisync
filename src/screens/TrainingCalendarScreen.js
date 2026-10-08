@@ -380,7 +380,7 @@ export default function TrainingCalendarScreen({ navigation }) {
         />
       </Card>
 
-      <XStack gap="$4" alignItems="center" flexWrap="wrap" px="$1">
+      <XStack gap="$4" alignItems="center" flexWrap="wrap" px="$4">
         <LegendDot color={t.status.done} label="Done" />
         <LegendDot color={t.status.partial} label="Partial" />
         <LegendDot color={t.status.missed} label="Missed" />
