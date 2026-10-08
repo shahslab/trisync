@@ -34,7 +34,8 @@ function Choice({ label, active, disabled, onPress }) {
 
 // "Available Plans" on the new-plan form. `selection` is { distance, level, weeks } or null;
 // `raceIso` (when chosen) greys out lengths that would have to start before today.
-export default function PlanLibraryPicker({ selection, onChange, raceIso, today }) {
+// `imported` is true while a plan file is loaded instead, so "None" isn't shown as chosen.
+export default function PlanLibraryPicker({ selection, onChange, raceIso, today, imported }) {
   const t = useTheme()
   const label = { fontFamily: FONT_SEMIBOLD, fontSize: 11, letterSpacing: 0.6, color: t.subtle, textTransform: 'uppercase' }
   const body = { fontFamily: FONT_REGULAR, fontSize: 12.5, lineHeight: 18, color: t.subtle }
@@ -55,11 +56,17 @@ export default function PlanLibraryPicker({ selection, onChange, raceIso, today 
       <Text style={body}>Start from a free triathlon plan, set to finish on your race day.</Text>
 
       <XStack gap="$2" flexWrap="wrap">
-        <Choice label="None" active={!selection} onPress={() => onChange(null)} />
+        <Choice label="None" active={!selection && !imported} onPress={() => onChange(null)} />
         {DISTANCES.map((d) => (
           <Choice key={d} label={d} active={selection?.distance === d} onPress={() => pick({ distance: d })} />
         ))}
       </XStack>
+
+      {!selection && !imported && (
+        <Text style={body}>
+          You'll start with an empty plan and add your own workouts day by day on the calendar.
+        </Text>
+      )}
 
       {selection && (
         <>

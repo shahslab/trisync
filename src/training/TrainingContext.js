@@ -86,7 +86,7 @@ export function TrainingProvider({ children }) {
     setPlans((prev) => prev.map((p) => (p.id === activePlanId ? { ...p, workouts: fn(p.workouts) } : p)))
   }
 
-  // template: an optional library plan ({ weeks, workouts: [{ week, day, type, title, notes }] })
+  // template: an optional library or imported plan ({ weeks, workouts: [{ week, day, type, title, notes }] })
   // whose workouts fill a new plan, placed so its final day (race day) falls on the race date
   const createPlan = ({ raceNameInput, raceDateInput, weeksInput, template }) => {
     const raceIso = displayToIso(raceDateInput)

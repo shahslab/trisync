@@ -12,6 +12,8 @@ import {
 } from '../training/trainingUtils'
 import { useTheme } from '../theme/ThemeContext'
 import PlanLibraryPicker, { planLibrarySupported, loadLibraryPlan, findEntry } from '../plans/PlanLibraryPicker'
+import PlanImportPicker from '../plans/PlanImportPicker'
+import { planImportSupported } from '../plans/planImport'
 
 LocaleConfig.locales['en'] = {
   monthNames: [
@@ -205,6 +207,7 @@ export default function TrainingCalendarScreen({ navigation }) {
   const [weeksInput, setWeeksInput] = useState('12')
   const [setupError, setSetupError] = useState('')
   const [librarySelection, setLibrarySelection] = useState(null) // { distance, level, weeks } from Available Plans
+  const [importedPlan, setImportedPlan] = useState(null) // { plan, fileName } from Import a Plan
   const [creating, setCreating] = useState(false)
 
   const [selectedDate, setSelectedDate] = useState(today)
@@ -221,11 +224,27 @@ export default function TrainingCalendarScreen({ navigation }) {
       setWeeksInput('12')
     }
     setLibrarySelection(null)
+    setImportedPlan(null)
     setSetupError('')
   }, [editingPlan, creatingPlan])
 
+  // A plan comes from the library or a file, not both
+  const chooseLibraryPlan = (next) => {
+    setLibrarySelection(next)
+    setImportedPlan(null) // a library plan, or "None" for a blank plan
+    setSetupError('')
+  }
+  const chooseImportedPlan = (next) => {
+    setImportedPlan(next)
+    if (next) {
+      setLibrarySelection(null)
+      if (!raceNameInput.trim() && next.plan.name) setRaceNameInput(next.plan.name)
+    }
+    setSetupError('')
+  }
+
   const handleCreatePlan = async () => {
-    let template
+    let template = importedPlan && !editingPlan ? importedPlan.plan : undefined
     const entry = librarySelection && findEntry(librarySelection)
     if (entry && !editingPlan) {
       setCreating(true)
@@ -310,7 +329,18 @@ export default function TrainingCalendarScreen({ navigation }) {
           {planLibrarySupported && !editingPlan && (
             <PlanLibraryPicker
               selection={librarySelection}
-              onChange={(next) => { setLibrarySelection(next); setSetupError('') }}
+              onChange={chooseLibraryPlan}
+              imported={!!importedPlan}
+              raceIso={displayToIso(raceDateInput)}
+              today={today}
+            />
+          )}
+
+          {planImportSupported && !editingPlan && (
+            <PlanImportPicker
+              imported={importedPlan}
+              onChange={chooseImportedPlan}
+              onError={setSetupError}
               raceIso={displayToIso(raceDateInput)}
               today={today}
             />
@@ -318,10 +348,10 @@ export default function TrainingCalendarScreen({ navigation }) {
 
           <YStack gap="$2">
             <Paragraph style={{ fontFamily: FONT_SEMIBOLD }} fontSize={11} letterSpacing={0.6} color={t.subtle} textTransform="uppercase">Training weeks</Paragraph>
-            {librarySelection && !editingPlan ? (
-              // A library plan has a fixed length
+            {(librarySelection || importedPlan) && !editingPlan ? (
+              // A library or imported plan has a fixed length
               <Text style={{ fontFamily: FONT_REGULAR, fontSize: 15, color: t.text, paddingVertical: 4 }}>
-                {librarySelection.weeks} weeks, set by the plan
+                {(librarySelection || importedPlan.plan).weeks} week{(librarySelection || importedPlan.plan).weeks === 1 ? '' : 's'}, set by the plan
               </Text>
             ) : (
               <Input value={weeksInput} onChangeText={setWeeksInput} keyboardType="numeric" placeholder="12" placeholderTextColor={t.subtle} borderColor={t.border} borderRadius={12} backgroundColor={t.surfaceRaised} color={t.text} style={{ fontFamily: FONT_REGULAR }} />
