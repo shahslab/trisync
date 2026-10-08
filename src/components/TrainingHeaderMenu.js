@@ -11,6 +11,7 @@ import { useTheme } from '../theme/ThemeContext'
 import SettingsModal from './SettingsModal'
 import InstallModal from '../pwa/InstallModal'
 import PlansModal from './PlansModal'
+import ReportBugModal from '../support/ReportBugModal'
 import CalendarExportModal from '../calendar/CalendarExportModal'
 import { calendarExportSupported } from '../calendar/icsExport'
 import { useInstallPrompt } from '../pwa/installPrompt'
@@ -27,6 +28,7 @@ export default function TrainingHeaderMenu() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [installOpen, setInstallOpen] = useState(false)
   const [plansOpen, setPlansOpen] = useState(false)
+  const [bugOpen, setBugOpen] = useState(false)
   const [exportPlan, setExportPlan] = useState(null) // plan shown in the calendar export dialog
   const install = useInstallPrompt()
 
@@ -94,6 +96,10 @@ export default function TrainingHeaderMenu() {
               <Text style={itemText}>Settings</Text>
             </Pressable>
 
+            <Pressable onPress={choose(() => setBugOpen(true))} style={itemStyle}>
+              <Text style={itemText}>Report a Bug</Text>
+            </Pressable>
+
             {install.available && (
               <Pressable onPress={choose(startInstall)} style={itemStyle}>
                 <Text style={{ ...itemText, color: t.secondary }}>Install TriSync</Text>
@@ -105,6 +111,7 @@ export default function TrainingHeaderMenu() {
 
       <SettingsModal visible={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <InstallModal visible={installOpen} onClose={() => setInstallOpen(false)} />
+      <ReportBugModal visible={bugOpen} onClose={() => setBugOpen(false)} />
       <PlansModal
         visible={plansOpen}
         onClose={() => setPlansOpen(false)}

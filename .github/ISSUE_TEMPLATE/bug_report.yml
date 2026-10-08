@@ -1,0 +1,24 @@
+name: Bug report
+description: Something in TriSync isn't working
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What went wrong, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the Calendar tab
+        2. Tap ...
+  - type: textarea
+    id: details
+    attributes:
+      label: Device details
+      description: Filled in for you when you report from TriSync's ☰ menu → Report a Bug.
+      render: text

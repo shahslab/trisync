@@ -21,7 +21,7 @@ if (isWeb) {
   })
 }
 
-const isStandalone = () => isWeb && (
+export const isStandalone = () => isWeb && (
   window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true
 )
 
