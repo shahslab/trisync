@@ -336,7 +336,8 @@ export default function TrainingCalendarScreen({ navigation }) {
             />
           )}
 
-          {planImportSupported && !editingPlan && (
+          {/* Importing is the alternative to a library plan, so it only shows with "None" chosen */}
+          {planImportSupported && !editingPlan && !librarySelection && (
             <PlanImportPicker
               imported={importedPlan}
               onChange={chooseImportedPlan}
