@@ -11,12 +11,14 @@ import { useTheme } from '../theme/ThemeContext'
 import SettingsModal from './SettingsModal'
 import InstallModal from '../pwa/InstallModal'
 import PlansModal from './PlansModal'
+import CalendarExportModal from '../calendar/CalendarExportModal'
+import { calendarExportSupported } from '../calendar/icsExport'
 import { useInstallPrompt } from '../pwa/installPrompt'
 
 const itemStyle = { paddingVertical: 10, paddingHorizontal: 10 }
 
 export default function TrainingHeaderMenu() {
-  const { planRange, startEditingPlan, startNewPlan } = useTraining()
+  const { planRange, plans, activePlanId, startEditingPlan, startNewPlan } = useTraining()
   const navigation = useNavigation()
   const strava = useStrava()
   const t = useTheme()
@@ -25,6 +27,7 @@ export default function TrainingHeaderMenu() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [installOpen, setInstallOpen] = useState(false)
   const [plansOpen, setPlansOpen] = useState(false)
+  const [exportPlan, setExportPlan] = useState(null) // plan shown in the calendar export dialog
   const install = useInstallPrompt()
 
   // Use the browser's own install prompt when it offers one; otherwise show the steps
@@ -60,7 +63,7 @@ export default function TrainingHeaderMenu() {
         >
           <YStack minWidth={180}>
             <Pressable onPress={choose(() => setPlansOpen(true))} style={itemStyle}>
-              <Text style={itemText}>My plans</Text>
+              <Text style={itemText}>My Plans</Text>
             </Pressable>
 
             <Pressable
@@ -74,6 +77,16 @@ export default function TrainingHeaderMenu() {
             >
               <Text style={itemText}>Edit plan</Text>
             </Pressable>
+
+            {calendarExportSupported && (
+              <Pressable
+                disabled={!planRange}
+                onPress={choose(() => setExportPlan(plans.find((p) => p.id === activePlanId)))}
+                style={{ ...itemStyle, opacity: planRange ? 1 : 0.4 }}
+              >
+                <Text style={itemText}>Add to calendar</Text>
+              </Pressable>
+            )}
 
             {strava.connected ? (
               <Pressable onPress={choose(strava.disconnect)} style={itemStyle}>
@@ -107,6 +120,10 @@ export default function TrainingHeaderMenu() {
       <PlansModal
         visible={plansOpen}
         onClose={() => setPlansOpen(false)}
+        onExportPlan={(plan) => {
+          setPlansOpen(false)
+          setExportPlan(plan)
+        }}
         onNewPlan={() => {
           // The plan form lives on the Calendar tab
           setPlansOpen(false)
@@ -114,6 +131,7 @@ export default function TrainingHeaderMenu() {
           navigation.navigate('TrainingPlan')
         }}
       />
+      <CalendarExportModal plan={exportPlan} onClose={() => setExportPlan(null)} />
     </>
   )
 }

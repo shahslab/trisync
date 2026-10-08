@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useTraining } from '../training/TrainingContext'
 import { Pill } from '../training/WorkoutRow'
 import { useTheme } from '../theme/ThemeContext'
+import { calendarExportSupported } from '../calendar/icsExport'
 import { daysBetween, formatOrdinalDate, FONT_REGULAR, FONT_SEMIBOLD, FONT_BOLD } from '../training/trainingUtils'
 
 // Alert.alert does nothing on web, so confirm there with the browser dialog
@@ -28,7 +29,7 @@ function countdown(today, raceDate) {
   return 'Completed'
 }
 
-function PlanCard({ plan, active, today, onSelect, onDelete }) {
+function PlanCard({ plan, active, today, onSelect, onExport, onDelete }) {
   const t = useTheme()
   const name = plan.raceName || 'Race Plan'
   const done = plan.raceDate < today
@@ -65,16 +66,23 @@ function PlanCard({ plan, active, today, onSelect, onDelete }) {
             {countdown(today, plan.raceDate)}
           </Text>
         </YStack>
-        <Pressable onPress={onDelete} hitSlop={10} accessibilityLabel={`Delete ${name}`} style={{ padding: 2 }}>
-          <Ionicons name="trash-outline" size={18} color={t.subtle} />
-        </Pressable>
+        <XStack gap="$3">
+          {calendarExportSupported && (
+            <Pressable onPress={onExport} hitSlop={8} accessibilityLabel={`Add ${name} to calendar`} style={{ padding: 2 }}>
+              <Ionicons name="calendar-outline" size={18} color={t.subtle} />
+            </Pressable>
+          )}
+          <Pressable onPress={onDelete} hitSlop={8} accessibilityLabel={`Delete ${name}`} style={{ padding: 2 }}>
+            <Ionicons name="trash-outline" size={18} color={t.subtle} />
+          </Pressable>
+        </XStack>
       </XStack>
     </Pressable>
   )
 }
 
 // Lists every race plan: tap one to make it current, or start a new one
-export default function PlansModal({ visible, onClose, onNewPlan }) {
+export default function PlansModal({ visible, onClose, onNewPlan, onExportPlan }) {
   const t = useTheme()
   const { plans, activePlanId, selectPlan, deletePlan, today } = useTraining()
 
@@ -92,6 +100,7 @@ export default function PlansModal({ visible, onClose, onNewPlan }) {
         selectPlan(plan.id)
         onClose()
       }}
+      onExport={() => onExportPlan(plan)}
       onDelete={() => confirmDelete(plan.raceName || 'Race Plan', () => deletePlan(plan.id))}
     />
   )
@@ -106,7 +115,7 @@ export default function PlansModal({ visible, onClose, onNewPlan }) {
           <YStack backgroundColor={t.surfaceSolid} borderColor={t.border} borderWidth={1} borderRadius={20} overflow="hidden" maxHeight="100%" flexShrink={1}>
             <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ padding: 20, gap: 14 }}>
               <XStack justifyContent="space-between" alignItems="center" width="100%">
-                <Text style={{ fontFamily: FONT_BOLD, fontSize: 18, color: t.text }}>My plans</Text>
+                <Text style={{ fontFamily: FONT_BOLD, fontSize: 18, color: t.text }}>My Plans</Text>
                 <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Close plans">
                   <Ionicons name="close" size={22} color={t.subtle} />
                 </Pressable>
