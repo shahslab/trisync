@@ -43,7 +43,7 @@ export default function CalendarExportModal({ plan, onClose }) {
           <YStack backgroundColor={t.surfaceSolid} borderColor={t.border} borderWidth={1} borderRadius={20} overflow="hidden" maxHeight="100%" flexShrink={1}>
             <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ padding: 20, gap: 14 }}>
               <XStack justifyContent="space-between" alignItems="center" width="100%">
-                <Text style={{ fontFamily: FONT_BOLD, fontSize: 18, color: t.text }}>Add to calendar</Text>
+                <Text style={{ fontFamily: FONT_BOLD, fontSize: 18, color: t.text }}>Add to Calendar</Text>
                 <Pressable onPress={close} hitSlop={10} accessibilityLabel="Close calendar export">
                   <Ionicons name="close" size={22} color={t.subtle} />
                 </Pressable>

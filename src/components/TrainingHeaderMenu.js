@@ -18,7 +18,7 @@ import { useInstallPrompt } from '../pwa/installPrompt'
 const itemStyle = { paddingVertical: 10, paddingHorizontal: 10 }
 
 export default function TrainingHeaderMenu() {
-  const { planRange, plans, activePlanId, startNewPlan } = useTraining()
+  const { planRange, plans, activePlanId, selectPlan, startEditingPlan, startNewPlan } = useTraining()
   const navigation = useNavigation()
   const strava = useStrava()
   const t = useTheme()
@@ -72,7 +72,7 @@ export default function TrainingHeaderMenu() {
                 onPress={choose(() => setExportPlan(plans.find((p) => p.id === activePlanId)))}
                 style={{ ...itemStyle, opacity: planRange ? 1 : 0.4 }}
               >
-                <Text style={itemText}>Add to calendar</Text>
+                <Text style={itemText}>Add to Calendar</Text>
               </Pressable>
             )}
 
@@ -111,6 +111,13 @@ export default function TrainingHeaderMenu() {
         onExportPlan={(plan) => {
           setPlansOpen(false)
           setExportPlan(plan)
+        }}
+        onEditPlan={(plan) => {
+          // Editing works on the current plan, and the form lives on the Calendar tab
+          setPlansOpen(false)
+          selectPlan(plan.id)
+          startEditingPlan()
+          navigation.navigate('TrainingPlan')
         }}
         onNewPlan={() => {
           // The plan form lives on the Calendar tab

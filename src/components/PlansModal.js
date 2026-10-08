@@ -29,7 +29,7 @@ function countdown(today, raceDate) {
   return 'Completed'
 }
 
-function PlanCard({ plan, active, today, onSelect, onExport, onDelete }) {
+function PlanCard({ plan, active, today, onSelect, onEdit, onExport, onDelete }) {
   const t = useTheme()
   const name = plan.raceName || 'Race Plan'
   const done = plan.raceDate < today
@@ -67,6 +67,9 @@ function PlanCard({ plan, active, today, onSelect, onExport, onDelete }) {
           </Text>
         </YStack>
         <XStack gap="$3">
+          <Pressable onPress={onEdit} hitSlop={8} accessibilityLabel={`Edit ${name}`} style={{ padding: 2 }}>
+            <Ionicons name="create-outline" size={18} color={t.subtle} />
+          </Pressable>
           {calendarExportSupported && (
             <Pressable onPress={onExport} hitSlop={8} accessibilityLabel={`Add ${name} to calendar`} style={{ padding: 2 }}>
               <Ionicons name="calendar-outline" size={18} color={t.subtle} />
@@ -82,7 +85,7 @@ function PlanCard({ plan, active, today, onSelect, onExport, onDelete }) {
 }
 
 // Lists every race plan: tap one to make it current, or start a new one
-export default function PlansModal({ visible, onClose, onNewPlan, onExportPlan }) {
+export default function PlansModal({ visible, onClose, onNewPlan, onEditPlan, onExportPlan }) {
   const t = useTheme()
   const { plans, activePlanId, selectPlan, deletePlan, today } = useTraining()
 
@@ -100,6 +103,7 @@ export default function PlansModal({ visible, onClose, onNewPlan, onExportPlan }
         selectPlan(plan.id)
         onClose()
       }}
+      onEdit={() => onEditPlan(plan)}
       onExport={() => onExportPlan(plan)}
       onDelete={() => confirmDelete(plan.raceName || 'Race Plan', () => deletePlan(plan.id))}
     />
