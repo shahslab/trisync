@@ -1,6 +1,6 @@
 import React from 'react'
 import { YStack, XStack, Card, Paragraph } from 'tamagui'
-import { Text } from 'react-native'
+import { ScrollView, Text } from 'react-native'
 
 import { useTraining } from '../training/TrainingContext'
 import { Pill, WorkoutRow } from '../training/WorkoutRow'
@@ -15,7 +15,10 @@ export default function TodaysActivitiesScreen({ navigation }) {
   const todaysWorkouts = workouts.filter((w) => w.date === today)
 
   return (
-    <YStack flex={1} backgroundColor={t.bg} p="$5" gap="$4">
+    <ScrollView
+      style={{ flex: 1, backgroundColor: t.bg }}
+      contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}
+    >
       <YStack gap="$0.5">
         <Paragraph style={{ fontFamily: FONT_BOLD }} fontSize={11} letterSpacing={2} color={t.subtle} textTransform="uppercase">
             Today
@@ -45,6 +48,6 @@ export default function TodaysActivitiesScreen({ navigation }) {
           ))
         )}
       </Card>
-    </YStack>
+    </ScrollView>
   )
 }
