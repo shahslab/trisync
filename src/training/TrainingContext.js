@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
-  todayStr, displayToIso, isValidCalendarDate, daysBetween, subtractDays, makeId,
+  todayStr, displayToIso, isValidCalendarDate, daysBetween, subtractDays, makeId, formatPlanNotes,
 } from './trainingUtils'
 
 // { plans: [{ id, raceName, raceDate, start, weeks, source, workouts }], activePlanId }
@@ -15,7 +15,11 @@ const LEGACY_STORAGE_KEY = 'oneplan/training/v1' // before the OnePlan → TriSy
 // Accepts saved or backed-up training data in any version and returns the current shape
 export function normalizeTrainingData(data) {
   if (Array.isArray(data?.plans)) {
-    const plans = data.plans.map((p) => ({ ...p, workouts: p.workouts || [] }))
+    // Older plan notes were saved as one paragraph; laying them out again is harmless if already done
+    const plans = data.plans.map((p) => ({
+      ...p,
+      workouts: (p.workouts || []).map((w) => (w.notes ? { ...w, notes: formatPlanNotes(w.notes) } : w)),
+    }))
     const activePlanId = plans.some((p) => p.id === data.activePlanId) ? data.activePlanId : (plans[0]?.id ?? null)
     return { plans, activePlanId }
   }
@@ -35,7 +39,7 @@ const workoutsFromTemplate = (template, start) => template.workouts.map((w) => (
   date: subtractDays(start, -((w.week - 1) * 7 + w.day)),
   type: w.type,
   title: w.title,
-  notes: w.notes,
+  notes: formatPlanNotes(w.notes),
   status: 'pending',
 }))
 

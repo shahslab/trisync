@@ -63,6 +63,56 @@ export function statusFor(workout, todayIso) {
 
 export const TYPE_LIST = Object.values(WORKOUT_TYPES)
 
+const NOTE_SECTIONS = /(Warm Up|Main Set|Warm Down):[ \t]*/g
+// The start of a set: "2 x (..." or "11 mins ..."
+const SET_START = /^\s+\d+\s*(?:x\s*\(|mins?\b)/
+
+// Splits a section into its sets at commas that are followed by a new set and aren't inside
+// brackets ("2 x (3, 2, 1 mins ...)" is one set)
+function splitSets(body) {
+  const sets = []
+  let depth = 0
+  let from = 0
+  for (let i = 0; i < body.length; i++) {
+    if (body[i] === '(') depth++
+    else if (body[i] === ')') depth = Math.max(0, depth - 1)
+    else if (body[i] === ',' && depth === 0 && SET_START.test(body.slice(i + 1))) {
+      sets.push(body.slice(from, i))
+      from = i + 1
+    }
+  }
+  return [...sets, body.slice(from)]
+}
+// A heading for the sets after it, like "Repeat 2 sets of 500:" before "1 x (..."
+const SET_HEADING = /^([^()]+?):\s*(?=\d+\s*x\s*\()/
+
+// Lays out plan notes written as one paragraph ("Warm Up: ... Main Set: ... Warm Down: ...")
+// with each section on its own line, and a section of several sets as one bullet per set
+// (a "Repeat 2 sets of 500:" heading gets its own line above them).
+// Only whitespace changes, and notes already laid out (or without these headings) come back as they are.
+export function formatPlanNotes(notes) {
+  if (!notes) return notes
+  const parts = notes.split(NOTE_SECTIONS) // [before, label, body, label, body, ...]
+  if (parts.length < 3) return notes
+  const sections = []
+  for (let i = 1; i < parts.length; i += 2) {
+    const body = parts[i + 1].trim()
+    const sets = splitSets(body)
+    if (body.includes('\n')) sections.push(`${parts[i]}:\n${body}`) // laid out already
+    else if (sets.length > 1) {
+      const lines = sets.map((set) => {
+        const item = set.trim().replace(/[.,]$/, '')
+        const heading = SET_HEADING.exec(item)
+        return heading ? `${heading[1]}:\n• ${item.slice(heading[0].length)}` : `• ${item}`
+      })
+      sections.push(`${parts[i]}:\n${lines.join('\n')}`)
+    }
+    else sections.push(`${parts[i]}: ${body}`)
+  }
+  const before = parts[0].trim()
+  return [before, ...sections].filter(Boolean).join('\n\n')
+}
+
 // Colours live in src/theme (useTheme); only fonts and theme-derived styles are here
 export const FONT_REGULAR = 'JosefinSans_400Regular'
 export const FONT_MEDIUM = 'JosefinSans_500Medium'
