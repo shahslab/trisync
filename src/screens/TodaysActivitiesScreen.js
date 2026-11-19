@@ -192,7 +192,7 @@ export default function TodaysActivitiesScreen({ navigation }) {
           ) : (
             <WorkoutList workouts={todaysWorkouts} today={today} onUpdate={updateWorkout} onDelete={deleteWorkout} />
           )}
-          <AddWorkoutForm onAdd={(w) => addWorkout({ ...w, date: today })} />
+          <AddWorkoutForm date={today} onAdd={(w) => addWorkout({ ...w, date: today })} />
         </Card>
       )}
     </ScrollView>

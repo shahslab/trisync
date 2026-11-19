@@ -107,7 +107,7 @@ export function StravaProvider({ children }) {
   // linkedActivityIds: activities already synced to other workouts (never offered again).
   // brickSiblings: the day's other Brick workouts already synced, renumbered if needed.
   // Pass activityId to skip matching (after the user picked one).
-  // Returns { status: 'synced', activity } | { status: 'choose', activities } | { status: 'none' }
+  // Returns { status: 'synced', activity, brickParts? } | { status: 'choose', activities } | { status: 'none' }
   const syncWorkout = async (workout, { linkedActivityIds = [], brickSiblings = [] } = {}, activityId) => {
     const token = await accessToken()
     let dayActivities = null
@@ -131,17 +131,20 @@ export function StravaProvider({ children }) {
 
     const day = await loadDay()
     const legIds = [id, ...brickSiblings.map((w) => w.stravaActivityId)]
-    const activity = await applyWorkoutToActivity(token, id, workout, brickPartFor(day, legIds, id))
+    const brickParts = { [workout.id]: brickPartFor(day, legIds, id) }
+    brickSiblings.forEach((sibling) => { brickParts[sibling.id] = brickPartFor(day, legIds, sibling.stravaActivityId) })
+    const activity = await applyWorkoutToActivity(token, id, workout, brickParts[workout.id])
     // A leg synced earlier may have a new number now this one is known (e.g. the run was
     // marked first and called Part 1, then the earlier ride arrives). Unchanged ones aren't rewritten.
     try {
       for (const sibling of brickSiblings) {
-        await applyWorkoutToActivity(token, sibling.stravaActivityId, sibling, brickPartFor(day, legIds, sibling.stravaActivityId))
+        await applyWorkoutToActivity(token, sibling.stravaActivityId, sibling, brickParts[sibling.id])
       }
     } catch (e) {
       notify(`Synced, but couldn't renumber the other brick leg on Strava: ${e.message}`)
     }
-    return { status: 'synced', activity }
+    // brickParts: { [workoutId]: N }, so the legs' notes can show the numbers Strava has
+    return { status: 'synced', activity, brickParts }
   }
 
   const value = {

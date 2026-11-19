@@ -83,11 +83,21 @@ export const mondayOf = (iso) => subtractDays(iso, (new Date(`${iso}T00:00:00`).
 // Rest days don't count towards a week's training
 export const isTraining = (w) => w.type !== 'Rest'
 
-// Effort rating given when logging a workout (1–5)
-export const EFFORT_LABELS = ['Easy', 'Moderate', 'Hard', 'Very hard', 'Max']
 
 // Each Brick workout is one leg; `brickSport` records which sport that leg is
 export const BRICK_SPORTS = ['Swim', 'Bike', 'Run']
+
+// A brick leg's notes start "Brick Part N: ", as its Strava description does. Before a leg
+// syncs, N follows race order among the day's legs (swim, bike, run); syncing replaces it with
+// the order of the Strava activities' start times.
+const BRICK_PART_PREFIX = /^Brick Part \d+:\s*/
+export const stripBrickPart = (notes) => (notes || '').replace(BRICK_PART_PREFIX, '')
+export const withBrickPart = (notes, part) => `Brick Part ${part}: ${stripBrickPart(notes)}`
+// sport: this leg's; otherSports: the brickSport of the day's other brick legs
+export function expectedBrickPart(sport, otherSports) {
+  const order = BRICK_SPORTS.indexOf(sport)
+  return 1 + otherSports.filter((s) => s && BRICK_SPORTS.indexOf(s) <= order).length
+}
 
 // The name a sport goes by in titles: a bike session is a "Ride"
 export const sportTitle = (sport) => (sport === 'Bike' ? 'Ride' : sport)

@@ -4,7 +4,8 @@ import { Popover } from '@tamagui/popover'
 import { Pressable, Text, TextInput, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import {
-  TYPE_LIST, TYPE_ICONS, BRICK_SPORTS, EFFORT_LABELS, sportTitle, statusFor, formatShortDay, isTrained,
+  TYPE_LIST, TYPE_ICONS, BRICK_SPORTS, sportTitle, statusFor, formatShortDay, isTrained,
+  stripBrickPart, withBrickPart, expectedBrickPart,
   FONT_REGULAR, FONT_SEMIBOLD, FONT_BOLD,
   notesInputStyle,
 } from './trainingUtils'
@@ -204,28 +205,44 @@ const autoTitleFor = (type, brickSport) => sportTitle(type === 'Brick' ? brickSp
 // Titles the forms may replace: empty, or one filled in automatically
 const isAutoTitle = (title) => !title || [...TYPE_LIST, ...BRICK_SPORTS].some((s) => s === title || sportTitle(s) === title)
 
-// Form state for a workout's type, brick sport and title, keeping an automatic title in step
-function useTypeAndTitle(initial) {
+// Form state for a workout's type, brick sport, title and notes, keeping an automatic title
+// in step, and a brick leg's notes starting "Brick Part N: " as they will on Strava.
+// otherBrickSports(): the sports of the day's other brick legs, to number this one.
+function useWorkoutForm(initial, otherBrickSports = () => []) {
   const [type, setTypeState] = useState(initial.type)
   const [brickSport, setBrickSportState] = useState(initial.brickSport || null)
   const [title, setTitle] = useState(initial.title || '')
+  const [notes, setNotes] = useState(initial.notes || '')
   const retitle = (nextType, nextSport) => {
     setTitle((current) => (isAutoTitle(current.trim()) ? autoTitleFor(nextType, nextSport) : current))
+  }
+  const renumber = (nextType, nextSport) => {
+    setNotes((current) => (nextType === 'Brick' && nextSport
+      ? withBrickPart(current, expectedBrickPart(nextSport, otherBrickSports()))
+      : stripBrickPart(current)))
   }
   return {
     type,
     brickSport,
     title,
     setTitle,
-    setType: (next) => { setTypeState(next); retitle(next, brickSport) },
-    setBrickSport: (next) => { setBrickSportState(next); retitle(type, next) },
+    notes,
+    setNotes,
+    setType: (next) => { setTypeState(next); retitle(next, brickSport); renumber(next, brickSport) },
+    setBrickSport: (next) => { setBrickSportState(next); retitle(type, next); renumber(type, next) },
     reset: (next) => {
       setTypeState(next.type)
       setBrickSportState(next.brickSport || null)
       setTitle(next.title || '')
+      setNotes(next.notes || '')
     },
   }
 }
+
+// The sports of a day's brick legs, leaving out one workout (the one being numbered)
+const brickSportsOn = (workouts, date, exceptId) => workouts
+  .filter((w) => w.type === 'Brick' && w.date === date && w.id !== exceptId)
+  .map((w) => w.brickSport)
 
 // Plan notes, cut to a few lines with "Show more" when long
 const NOTES_PREVIEW_LINES = 4
@@ -266,73 +283,6 @@ function BrickSportPicker({ value, onChange, color }) {
         />
       ))}
     </XStack>
-  )
-}
-
-// How hard a logged workout felt (1–5) and an optional note, saved on the workout
-function LogDetails({ workout, onUpdate }) {
-  const t = useTheme()
-  const [feel, setFeel] = useState(workout.feel || '')
-  const saveFeel = () => {
-    if (feel.trim() !== (workout.feel || '')) onUpdate(workout.id, { feel: feel.trim() })
-  }
-
-  return (
-    <YStack gap="$2" borderWidth={1} borderColor={t.border} borderRadius={12} backgroundColor={t.surfaceRaised} p="$2.5">
-      <XStack alignItems="center" gap="$2" flexWrap="wrap">
-        <Text style={smallTextStyle(t)}>How did it feel?</Text>
-        <XStack gap={6}>
-          {EFFORT_LABELS.map((label, i) => {
-            const value = i + 1
-            const active = workout.effort === value
-            return (
-              <Pressable
-                key={value}
-                accessibilityRole="button"
-                accessibilityLabel={`Effort ${value} of 5, ${label}`}
-                accessibilityState={{ selected: active }}
-                onPress={() => onUpdate(workout.id, { effort: active ? null : value })}
-                style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: 15,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderWidth: 1,
-                  borderColor: active ? t.primary : t.border,
-                  backgroundColor: active ? t.primary : t.surface,
-                }}
-              >
-                <Text style={{ fontFamily: FONT_BOLD, fontSize: 12.5, color: active ? t.onAccent : t.text }}>{value}</Text>
-              </Pressable>
-            )
-          })}
-        </XStack>
-        {!!workout.effort && (
-          <Text style={{ fontFamily: FONT_SEMIBOLD, fontSize: 12.5, color: t.primary }}>{EFFORT_LABELS[workout.effort - 1]}</Text>
-        )}
-      </XStack>
-      <TextInput
-        placeholder="Add a note (e.g. legs heavy, nailed the intervals)"
-        placeholderTextColor={t.subtle}
-        value={feel}
-        onChangeText={setFeel}
-        onBlur={saveFeel}
-        onSubmitEditing={saveFeel}
-        returnKeyType="done"
-        style={{
-          fontFamily: FONT_REGULAR,
-          fontSize: 13,
-          color: t.text,
-          borderWidth: 1,
-          borderColor: t.border,
-          borderRadius: 10,
-          backgroundColor: t.surface,
-          paddingHorizontal: 10,
-          paddingVertical: 8,
-        }}
-      />
-    </YStack>
   )
 }
 
@@ -392,12 +342,11 @@ function SwapPanel({ workout, onClose }) {
 export const WorkoutRow = forwardRef(function WorkoutRow({ workout, today, onUpdate, onDelete, embedded, showDate }, ref) {
   const t = useTheme()
   const [isEditing, setIsEditing] = useState(false)
-  const edit = useTypeAndTitle(workout)
-  const { type: editType, setType: setEditType, title: editTitle, setTitle: setEditTitle, brickSport: editBrickSport, setBrickSport: setEditBrickSport } = edit
-  const [editNotes, setEditNotes] = useState(workout.notes || '')
-
   const strava = useStrava()
   const { planRange, workouts, allWorkouts } = useTraining()
+  const edit = useWorkoutForm(workout, () => brickSportsOn(workouts, workout.date, workout.id))
+  const { type: editType, setType: setEditType, title: editTitle, setTitle: setEditTitle, brickSport: editBrickSport, setBrickSport: setEditBrickSport } = edit
+  const { notes: editNotes, setNotes: setEditNotes } = edit
   const display = useWorkoutDisplay()
   const { units } = display
   const [showGraphic, setShowGraphic] = useState(false)
@@ -430,7 +379,18 @@ export const WorkoutRow = forwardRef(function WorkoutRow({ workout, today, onUpd
           : [],
       }, activityId)
       if (result.status === 'synced') {
-        onUpdate(target.id, linkUpdates(target, result.activity))
+        // Brick legs' notes take the part numbers Strava now shows
+        const numbered = (w) => {
+          const part = result.brickParts?.[w.id]
+          const notes = part ? withBrickPart(w.notes, part).trim() : w.notes
+          return notes !== w.notes ? { notes } : null
+        }
+        Object.keys(result.brickParts || {}).forEach((id) => {
+          const sibling = id !== target.id && fresh(workouts).find((w) => w.id === id)
+          const change = sibling && numbered(sibling)
+          if (change) onUpdate(id, change)
+        })
+        onUpdate(target.id, { ...linkUpdates(target, result.activity), ...numbered(target) })
         setSync(null)
         return result.activity.id
       }
@@ -454,7 +414,12 @@ export const WorkoutRow = forwardRef(function WorkoutRow({ workout, today, onUpd
   const toggleStatus = (nextStatus) => logStatus(workout.status === nextStatus ? 'pending' : nextStatus)
 
   const setBrickSport = (sport) => {
-    onUpdate(workout.id, { brickSport: sport })
+    onUpdate(workout.id, {
+      brickSport: sport,
+      notes: sport
+        ? withBrickPart(workout.notes, expectedBrickPart(sport, brickSportsOn(workouts, workout.date, workout.id))).trim()
+        : stripBrickPart(workout.notes),
+    })
     // Rename the linked Strava activity to match
     if (sport && workout.stravaActivityId && isTrained(workout) && strava.canSync(workout)) {
       runSync({ ...workout, brickSport: sport })
@@ -463,7 +428,6 @@ export const WorkoutRow = forwardRef(function WorkoutRow({ workout, today, onUpd
 
   const startEdit = () => {
     edit.reset(workout)
-    setEditNotes(workout.notes || '')
     setIsEditing(true)
   }
 
@@ -589,7 +553,6 @@ export const WorkoutRow = forwardRef(function WorkoutRow({ workout, today, onUpd
         </XStack>
       )}
 
-      {!isRest && isTrained(workout) && <LogDetails key={workout.id} workout={workout} onUpdate={onUpdate} />}
 
       {strava.canSync(workout) && (
         <StravaSync
@@ -705,22 +668,23 @@ export function WorkoutList({ workouts, today, onUpdate, onDelete, showDate }) {
 }
 
 // Collapsed to an "Add workout" button until opened, so it doesn't push the day's workouts away
-export function AddWorkoutForm({ onAdd }) {
+// date: the day it adds to, so a brick leg can be numbered among that day's legs
+export function AddWorkoutForm({ onAdd, date }) {
   const t = useTheme()
   const [open, setOpen] = useState(false)
   const DEFAULT_TYPE = TYPE_LIST[2] || TYPE_LIST[0]
-  const form = useTypeAndTitle({ type: DEFAULT_TYPE, title: autoTitleFor(DEFAULT_TYPE) })
+  const { workouts } = useTraining()
+  const form = useWorkoutForm({ type: DEFAULT_TYPE, title: autoTitleFor(DEFAULT_TYPE) }, () => brickSportsOn(workouts, date))
   const { type: newType, setType: setNewType, title: newTitle, setTitle: setNewTitle, brickSport: newBrickSport, setBrickSport: setNewBrickSport } = form
-  const [newNotes, setNewNotes] = useState('')
+  const { notes: newNotes, setNotes: setNewNotes } = form
 
   const close = () => {
     form.reset({ type: newType, title: autoTitleFor(newType) })
-    setNewNotes('')
     setOpen(false)
   }
 
   const handleAdd = () => {
-    onAdd({ type: newType, title: newTitle, notes: newNotes, brickSport: newType === 'Brick' ? newBrickSport : null })
+    onAdd({ type: newType, title: newTitle, notes: newNotes.trim(), brickSport: newType === 'Brick' ? newBrickSport : null })
     close()
   }
 

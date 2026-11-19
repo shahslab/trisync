@@ -1,10 +1,11 @@
-# Builds the web app and publishes it to GitHub Pages (https://<owner>.github.io/<repo>/)
-# on every push to master. No secrets are needed: Strava keys are entered in the app.
-name: Deploy web app
+# The web app moved to https://trisync.fly.dev (see deploy-fly.yml). GitHub Pages now
+# only serves a redirect, so old links and home-screen installs land on the new address.
+name: Redirect old GitHub Pages site
 
 on:
   push:
     branches: [master]
+    paths: ['redirect/**', '.github/workflows/deploy-web.yml']
   workflow_dispatch:
 
 permissions:
@@ -24,19 +25,9 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - name: Export web build
-        run: npx expo export -p web --output-dir dist
-        env:
-          EXPO_BASE_URL: /${{ github.event.repository.name }}
-          EXPO_NO_DOTENV: 1
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: redirect
       - id: deployment
         uses: actions/deploy-pages@v4

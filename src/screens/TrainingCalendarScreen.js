@@ -522,6 +522,9 @@ export default function TrainingCalendarScreen({ navigation, route }) {
     )
   }
 
+  // Hours per plan week, beneath the calendar (or the week-by-week list)
+  const volumeCard = <PlanVolumeChart onSelectWeek={openDay} asCard />
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: t.bg }}
@@ -549,9 +552,8 @@ export default function TrainingCalendarScreen({ navigation, route }) {
             ? 'Race day is today'
             : 'Race complete'}
         </Text>
-        <YStack mt="$2" gap="$4">
+        <YStack mt="$2">
           <PlanProgress showHeadline={false} />
-          <PlanVolumeChart onSelectWeek={openDay} />
         </YStack>
       </Card>
 
@@ -584,6 +586,8 @@ export default function TrainingCalendarScreen({ navigation, route }) {
         </Card>
       )}
 
+      {view === 'list' && volumeCard}
+
       {view === 'month' && (<>
 
       <Card backgroundColor={t.surface} borderColor={t.border} borderWidth={1} borderRadius={20} p="$3" style={t.cardShadow}>
@@ -610,6 +614,8 @@ export default function TrainingCalendarScreen({ navigation, route }) {
         <LegendDot color={t.race} label="Race day" />
       </XStack>
 
+      {volumeCard}
+
       <Card backgroundColor={t.surface} borderColor={t.border} borderWidth={1} borderRadius={20} p="$4" gap="$3" style={t.cardShadow}>
         <Text style={{ fontFamily: FONT_EXTRABOLD, fontSize: 17, color: t.text }}>
           {formatLongDate(selectedDate)} {isRaceDay ? '· Race Day' : ''}
@@ -626,7 +632,7 @@ export default function TrainingCalendarScreen({ navigation, route }) {
           <WorkoutList workouts={dayWorkouts} today={today} onUpdate={updateWorkout} onDelete={deleteWorkout} />
         )}
 
-        <AddWorkoutForm onAdd={(w) => addWorkout({ ...w, date: selectedDate })} />
+        <AddWorkoutForm date={selectedDate} onAdd={(w) => addWorkout({ ...w, date: selectedDate })} />
       </Card>
       </>)}
     </ScrollView>

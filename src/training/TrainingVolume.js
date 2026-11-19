@@ -72,7 +72,8 @@ const CHART_HEIGHT = 64
 
 // One column per plan week: planned hours as the outline, trained hours filled in.
 // Tapping a column selects that week's first day.
-export function PlanVolumeChart({ onSelectWeek }) {
+// asCard: drawn in its own card (only when there's a chart to show)
+export function PlanVolumeChart({ onSelectWeek, asCard }) {
   const t = useTheme()
   const { today, planRange, workouts } = useTraining()
   if (!planRange) return null
@@ -86,7 +87,7 @@ export function PlanVolumeChart({ onSelectWeek }) {
   if (!max) return null
   const currentWeek = today >= planRange.start && today <= planRange.raceDate ? planWeekOf(planRange.start, today) : null
 
-  return (
+  const chart = (
     <YStack gap="$1.5">
       <Text style={{ fontFamily: FONT_BOLD, fontSize: 11, letterSpacing: 1.5, color: t.subtle, textTransform: 'uppercase' }}>Hours by week</Text>
       <XStack height={CHART_HEIGHT} alignItems="flex-end" gap={3}>
@@ -119,6 +120,13 @@ export function PlanVolumeChart({ onSelectWeek }) {
         <Text style={{ fontFamily: FONT_REGULAR, fontSize: 11, color: t.subtle }}>Peak {formatHours(max)}</Text>
         <Text style={{ fontFamily: FONT_REGULAR, fontSize: 11, color: t.subtle }}>W{planRange.weeks}</Text>
       </XStack>
+    </YStack>
+  )
+
+  if (!asCard) return chart
+  return (
+    <YStack backgroundColor={t.surface} borderColor={t.border} borderWidth={1} borderRadius={20} padding="$4" style={t.cardShadow}>
+      {chart}
     </YStack>
   )
 }

@@ -1,7 +1,7 @@
 import { Platform } from 'react-native'
 import * as WebBrowser from 'expo-web-browser'
 import * as Linking from 'expo-linking'
-import { daysBetween, sportTitle } from '../training/trainingUtils'
+import { daysBetween, sportTitle, stripBrickPart } from '../training/trainingUtils'
 
 // Each user registers their own Strava API app and enters its keys in Settings; they are
 // stored only on that device and passed in here as `keys` ({ clientId, clientSecret }).
@@ -81,7 +81,7 @@ export const isExpired = (session) => session.expiresAt * 1000 < Date.now() + 60
 
 // The host to set as the Strava app's "Authorization Callback Domain": the deployed site.
 // Strava always allows localhost too, so local dev logs in with the same setting.
-export const WEB_CALLBACK_DOMAIN = 'shahslab.github.io'
+export const WEB_CALLBACK_DOMAIN = 'trisync.fly.dev'
 export const callbackDomain = () => (Platform.OS === 'web'
   ? WEB_CALLBACK_DOMAIN
   : Linking.parse(Linking.createURL('strava-auth')).hostname)
@@ -181,7 +181,7 @@ function buildUpdate(activity, workout, brickPart) {
 
   const brickLabel = workout.type === 'Brick' ? `Brick Part ${brickPart || 1}` : null
   const description = brickLabel
-    ? [brickLabel, workout.notes].filter(Boolean).join(': ')
+    ? [brickLabel, stripBrickPart(workout.notes)].filter(Boolean).join(': ')
     : workout.notes
   // Leave Strava's description alone when TriSync has nothing to say
   if (description && description !== (activity.description || '')) update.description = description

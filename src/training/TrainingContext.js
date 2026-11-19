@@ -19,7 +19,8 @@ export function normalizeTrainingData(data) {
     // Older plan notes were saved as one paragraph; laying them out again is harmless if already done
     const plans = data.plans.map((p) => ({
       ...p,
-      workouts: (p.workouts || []).map((w) => (w.notes ? { ...w, notes: formatPlanNotes(w.notes) } : w)),
+      // The effort rating and "how it felt" note were dropped from the app; their old values go too
+      workouts: (p.workouts || []).map(({ effort, feel, ...w }) => (w.notes ? { ...w, notes: formatPlanNotes(w.notes) } : w)),
     }))
     const activePlanId = plans.some((p) => p.id === data.activePlanId) ? data.activePlanId : (plans[0]?.id ?? null)
     return { plans, activePlanId }

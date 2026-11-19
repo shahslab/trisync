@@ -1,0 +1,20 @@
+# TriSync's web app on Fly.io (org: personal / "Rushil Popat"), https://trisync.fly.dev.
+# Deployed by .github/workflows/deploy-fly.yml on every push to master, or `fly deploy`.
+# The account server is a separate app: pocketbase/fly.toml.
+app = 'trisync'
+primary_region = 'lax'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  memory = '256mb'
+  cpu_kind = 'shared'
+  cpus = 1

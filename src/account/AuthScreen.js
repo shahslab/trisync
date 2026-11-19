@@ -7,10 +7,13 @@ import { Pill } from '../training/WorkoutRow'
 import { GLYPH_ASPECT } from '../components/SplashOverlay'
 import { FONT_REGULAR, FONT_SEMIBOLD, FONT_BOLD } from '../training/trainingUtils'
 import { requestCode, verifyCode } from './pocketbase'
+import ReportBugModal from '../support/ReportBugModal'
 
-// Full-screen card shared by the sign-in and "which data?" screens
+// Full-screen card shared by the sign-in and "which data?" screens, with a bug report
+// link below it (signing in is where a problem would otherwise leave someone stuck)
 function Shell({ children }) {
   const t = useTheme()
+  const [bugOpen, setBugOpen] = useState(false)
   return (
     <AppBackground>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -36,7 +39,11 @@ function Shell({ children }) {
             </YStack>
             {children}
           </YStack>
+          <Pressable onPress={() => setBugOpen(true)} accessibilityRole="button" hitSlop={8} style={{ marginTop: 16 }}>
+            <Text style={{ fontFamily: FONT_SEMIBOLD, fontSize: 12.5, color: t.subtle }}>Report a bug</Text>
+          </Pressable>
         </ScrollView>
+        <ReportBugModal visible={bugOpen} onClose={() => setBugOpen(false)} />
       </KeyboardAvoidingView>
     </AppBackground>
   )

@@ -4,7 +4,7 @@ import appConfig from '../../app.json'
 import { isStandalone } from '../pwa/installPrompt'
 import { todayStr } from '../training/trainingUtils'
 
-export const BUG_EMAIL = 'shahshachi1@gmail.com'
+export const BUG_EMAIL = 'apptrisync@gmail.com'
 const ISSUES_URL = 'https://github.com/shahslab/trisync/issues/new'
 
 // The browser's name and version from its user agent. Order matters: Edge and the iOS
