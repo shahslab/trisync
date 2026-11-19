@@ -90,7 +90,8 @@ export const GRADIENTS = [
 ]
 
 // units ('imperial' | 'metric') sets how estimated workout distances are shown
-export const DEFAULT_APPEARANCE = { mode: 'dark', gradientId: 'aurora', units: 'imperial' }
+// workoutsBy: 'time' | 'distance', how timed rides and runs are shown (distanceEstimate.js)
+export const DEFAULT_APPEARANCE = { mode: 'dark', gradientId: 'aurora', units: 'imperial', workoutsBy: 'time' }
 
 // appearance: { mode: 'dark' | 'light' | 'gradient', gradientId }
 export function themeFor({ mode, gradientId }) {

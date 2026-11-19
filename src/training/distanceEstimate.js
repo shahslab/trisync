@@ -75,3 +75,82 @@ export function estimateDistance(workout, units) {
   const km = hours * SPEEDS[sport][intensityOf(workout.notes)]
   return sport === 'Swim' ? formatSwim(km * 1000, units) : formatLong(km, units)
 }
+
+// ---- Workouts by distance ----------------------------------------------------------------
+// With the "Workouts by: Distance" setting, timed rides and runs are shown as distances:
+// the title's duration becomes the session's estimated distance, and each timed work interval
+// in the notes becomes a distance at a typical speed for its heart-rate zone. Recoveries,
+// rests and anything under 2 minutes stay timed, as distance-based plans write them.
+// Shown only, never stored: editing a workout still edits its time-based title and notes.
+
+// Speeds while holding each zone, Z1 to Z5 (km/h)
+const ZONE_SPEEDS = {
+  Run: [8.0, 9.0, 10.0, 11.0, 12.0], // about 12:04, 10:44, 9:39, 8:47 and 8:03 per mile
+  Bike: [21, 25, 28, 31, 34], // about 13, 15.5, 17.5, 19 and 21 mph
+}
+const MIN_INTERVAL_SECS = 120
+
+// "1 hr 20 mins", "45 mins", "1 hr", "90 secs" (one duration, possibly in parts)
+const DURATION = /\d+(?:\.\d+)? ?(?:hrs?|hours?)(?: \d+ ?(?:mins?|minutes?))?(?: \d+ ?(?:secs?|seconds?))?|\d+ ?(?:mins?|minutes?)(?: \d+ ?(?:secs?|seconds?))?|\d+ ?(?:secs?|seconds?)/gi
+
+function durationSecs(text) {
+  const hours = /(\d+(?:\.\d+)?) ?(?:hrs?|hours?)/i.exec(text)
+  const mins = /(\d+) ?(?:mins?|minutes?)/i.exec(text)
+  const secs = /(\d+) ?(?:secs?|seconds?)/i.exec(text)
+  return (hours ? +hours[1] * 3600 : 0) + (mins ? +mins[1] * 60 : 0) + (secs ? +secs[1] : 0)
+}
+
+// An interval's distance: metres for short runs ("800 m"), otherwise miles or km in quarters
+// (halves from 5 up)
+function formatInterval(km, sport, units) {
+  if (sport === 'Run' && km < 1.6) return `${roundTo(km * 1000, 100)} m`
+  const raw = units === 'imperial' ? km / KM_PER_MILE : km
+  const value = +roundTo(raw, raw < 5 ? 0.25 : 0.5).toFixed(2)
+  if (!value) return null
+  if (units !== 'imperial') return `${value} km`
+  return `${value} ${value === 1 ? 'mile' : 'miles'}`
+}
+
+const distanceSport = (workout) => {
+  const sport = sportOf(workout)
+  return ZONE_SPEEDS[sport] ? sport : null
+}
+
+// The title with its duration swapped for the estimated distance ("Optional Bike · 17.5 miles"),
+// or null when it can't be shown by distance
+export function distanceTitle(workout, units) {
+  const title = workout.title || ''
+  if (!distanceSport(workout) || !durationHours(title)) return null
+  const distance = estimateDistance(workout, units)
+  if (!distance) return null
+  DURATION.lastIndex = 0
+  const match = DURATION.exec(title)
+  return match ? title.slice(0, match.index) + distance + title.slice(match.index + match[0].length) : distance
+}
+
+// The notes with timed work intervals converted to distances
+export function notesByDistance(workout, units) {
+  const notes = workout.notes || ''
+  const sport = distanceSport(workout)
+  if (!sport || !notes) return notes
+  const sessionSpeed = SPEEDS[sport][intensityOf(notes)]
+
+  return notes.replace(DURATION, (match, offset) => {
+    // What follows the duration, up to the end of this step: "in upper Z3", "recovery in Z1"
+    const rest = notes.slice(offset + match.length)
+    const context = rest.slice(0, rest.search(/[,+().\n]|$/))
+    const secs = durationSecs(match)
+    if (secs < MIN_INTERVAL_SECS || /recover|rest|easy spin|jog/i.test(context)) return match
+    // Before the step: "Intensity:" lines and rest periods named first ("rest 2 mins") stay as they are
+    const before = notes.slice(Math.max(0, offset - 12), offset)
+    if (/rest\s*$/i.test(before)) return match
+
+    const zone = /Z(\d)(?:\s*-\s*Z?(\d))?/i.exec(context)
+    let speed = sessionSpeed
+    if (zone) {
+      const zones = [+zone[1], +(zone[2] || zone[1])].map((z) => Math.min(Math.max(z, 1), 5))
+      speed = (ZONE_SPEEDS[sport][zones[0] - 1] + ZONE_SPEEDS[sport][zones[1] - 1]) / 2
+    }
+    return formatInterval((secs / 3600) * speed, sport, units) || match
+  })
+}

@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { YStack, XStack } from 'tamagui'
 import { Pressable, Text } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { useTheme } from '../theme/ThemeContext'
+import { useTheme, useWorkoutDisplay } from '../theme/ThemeContext'
 import { useTraining } from './TrainingContext'
 import { workoutLabel } from './WorkoutRow'
 import { estimateHours } from './distanceEstimate'
@@ -16,6 +16,7 @@ const dayMonth = (iso) => `${Number(iso.slice(8))} ${MONTHS[Number(iso.slice(5, 
 // weeks a tap away. Tapping a workout opens its day in the month view.
 export default function PlanWeekList({ onOpenDay }) {
   const t = useTheme()
+  const display = useWorkoutDisplay()
   const { today, planRange, workouts } = useTraining()
   const currentWeek = today < planRange.start ? 1 : today > planRange.raceDate ? 1 : planWeekOf(planRange.start, today)
   const [fromWeek, setFromWeek] = useState(currentWeek)
@@ -68,7 +69,7 @@ export default function PlanWeekList({ onOpenDay }) {
                   <YStack width={8} height={8} borderRadius={4} backgroundColor={t.status[status]} />
                   <Ionicons name={TYPE_ICONS[w.type === 'Brick' && w.brickSport ? w.brickSport : w.type] || 'fitness-outline'} size={15} color={t.subtle} />
                   <Text numberOfLines={1} style={{ flex: 1, fontFamily: FONT_REGULAR, fontSize: 13.5, color: status === 'skipped' ? t.subtle : t.text }}>
-                    {workoutLabel(w)}
+                    {workoutLabel(w, display)}
                   </Text>
                   {!!w.stravaActivityId && <Ionicons name="checkmark-circle" size={14} color={t.strava} />}
                 </Pressable>

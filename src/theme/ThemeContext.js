@@ -56,6 +56,12 @@ export function useUnits() {
   return useAppearance().appearance.units
 }
 
+// How workouts are shown: { units, by: 'time' | 'distance' }, for workoutLabel() and notes
+export function useWorkoutDisplay() {
+  const { units, workoutsBy } = useAppearance().appearance
+  return useMemo(() => ({ units, by: workoutsBy }), [units, workoutsBy])
+}
+
 // Diagonal gradient filling its parent; used behind the app and for settings swatches
 export function GradientFill({ colors, id, style }) {
   return (

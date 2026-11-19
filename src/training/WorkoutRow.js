@@ -8,8 +8,8 @@ import {
   FONT_REGULAR, FONT_SEMIBOLD, FONT_BOLD,
   notesInputStyle,
 } from './trainingUtils'
-import { useTheme, useUnits } from '../theme/ThemeContext'
-import { estimateDistance } from './distanceEstimate'
+import { useTheme, useWorkoutDisplay } from '../theme/ThemeContext'
+import { estimateDistance, distanceTitle, notesByDistance } from './distanceEstimate'
 import { useStrava } from '../strava/StravaContext'
 import { linkUpdates } from '../strava/stravaApi'
 import { useTraining } from './TrainingContext'
@@ -190,11 +190,13 @@ function StravaSync({ workout, sync, onRun, onCancel, onShowGraphic }) {
   return null
 }
 
-// "Brick · Run: 15 mins" once a brick leg's sport is chosen
-export const workoutLabel = (w) => {
+// "Brick · Run: 15 mins" once a brick leg's sport is chosen. With display.by 'distance'
+// (from useWorkoutDisplay), timed rides and runs read as distances: "Bike: 16 miles".
+export const workoutLabel = (w, display) => {
   const type = w.type === 'Brick' && w.brickSport ? `Brick · ${w.brickSport}` : w.type
+  const title = (display?.by === 'distance' && distanceTitle(w, display.units)) || w.title
   // A title that only repeats the sport (filled in automatically) adds nothing
-  return w.title && !isAutoTitle(w.title) ? `${type}: ${w.title}` : type
+  return title && !isAutoTitle(title) ? `${type}: ${title}` : type
 }
 
 // The title filled in when a type (or a brick leg's sport) is picked: "Ride" for Bike, "Run" for a brick's run leg
@@ -396,12 +398,16 @@ export const WorkoutRow = forwardRef(function WorkoutRow({ workout, today, onUpd
 
   const strava = useStrava()
   const { planRange, workouts, allWorkouts } = useTraining()
-  const units = useUnits()
+  const display = useWorkoutDisplay()
+  const { units } = display
   const [showGraphic, setShowGraphic] = useState(false)
   const [isSwapping, setIsSwapping] = useState(false)
   const [sync, setSync] = useState(null) // { state: 'syncing' | 'none' | 'choose' | 'error', activities, message }
 
-  const distance = estimateDistance(workout, units)
+  // By distance, the heading shows the distance and the planned time follows it quietly
+  const byDistanceTitle = display.by === 'distance' ? distanceTitle(workout, units) : null
+  const distance = byDistanceTitle ? null : estimateDistance(workout, units)
+  const notesText = display.by === 'distance' ? notesByDistance(workout, units) : workout.notes
   // Only workouts in the current plan's range can move within their plan week
   const canMove = !!planRange && workout.date >= planRange.start && workout.date <= planRange.raceDate
     && (workout.type === 'Brick' ? workouts.filter((w) => w.type === 'Brick' && w.date === workout.date) : [workout]).every(isMovable)
@@ -537,7 +543,10 @@ export const WorkoutRow = forwardRef(function WorkoutRow({ workout, today, onUpd
               </Text>
             )}
             <Text style={{ fontFamily: FONT_BOLD, fontSize: 14.5, color: t.text }}>
-              {workoutLabel(workout)}{distance ? ` ≈ ${distance}` : ''}
+              {workoutLabel(workout, display)}{distance ? ` ≈ ${distance}` : ''}
+              {!!byDistanceTitle && (
+                <Text style={{ fontFamily: FONT_REGULAR, fontSize: 12.5, color: t.subtle }}>{`  ·  ${workout.title}`}</Text>
+              )}
             </Text>
             {(status === 'missed' || status === 'skipped' || !!workout.stravaActivityId) && (
               <XStack gap="$1.5" flexWrap="wrap">
@@ -546,7 +555,7 @@ export const WorkoutRow = forwardRef(function WorkoutRow({ workout, today, onUpd
                 {!!workout.stravaActivityId && <Chip label="On Strava" icon="checkmark-circle" color={t.strava} />}
               </XStack>
             )}
-            {!!workout.notes && <Notes text={workout.notes} />}
+            {!!notesText && <Notes text={notesText} />}
           </YStack>
         </XStack>
 
