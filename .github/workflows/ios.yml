@@ -1,0 +1,65 @@
+# Builds an unsigned iPhone app (.ipa) on GitHub's macOS runners. Install it on an
+# iPhone with SideStore, which signs it with a free Apple ID (renew every 7 days).
+# Same approach as SuuntoTracker. Run it from the Actions tab, or push a v* tag.
+name: iOS build
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: 'macOS runner, e.g. macos-15-intel when arm64 runners are busy'
+        default: macos-latest
+  push:
+    tags: ['v*']
+
+jobs:
+  ios:
+    runs-on: ${{ inputs.runner || 'macos-latest' }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Use the newest Xcode
+        run: |
+          X=$(ls -d /Applications/Xcode_*.app 2>/dev/null | grep -v beta | sort -V | tail -1)
+          if [ -n "$X" ]; then sudo xcode-select -s "$X"; fi
+          xcodebuild -version
+
+      - run: npm ci
+
+      - name: Generate iOS project
+        run: npx expo prebuild --platform ios --no-install
+
+      - name: Install CocoaPods dependencies
+        run: pod install
+        working-directory: ios
+
+      - name: Build unsigned app
+        run: |
+          xcodebuild \
+            -workspace ios/TriSync.xcworkspace \
+            -scheme TriSync \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package IPA
+        run: |
+          VERSION=$(node -p "require('./app.json').expo.version")
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/TriSync.app Payload/
+          zip -qry "TriSync-$VERSION-unsigned.ipa" Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TriSync-unsigned-ipa
+          path: TriSync-*-unsigned.ipa
+          retention-days: 30
