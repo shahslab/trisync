@@ -1,7 +1,7 @@
 import { Platform } from 'react-native'
 import * as WebBrowser from 'expo-web-browser'
 import * as Linking from 'expo-linking'
-import { daysBetween } from '../training/trainingUtils'
+import { daysBetween, sportTitle } from '../training/trainingUtils'
 
 // Each user registers their own Strava API app and enters its keys in Settings; they are
 // stored only on that device and passed in here as `keys` ({ clientId, clientSecret }).
@@ -133,9 +133,17 @@ export async function activitiesOnDate(accessToken, dateIso) {
   return list.filter((a) => (a.start_date_local || '').slice(0, 10) === dateIso)
 }
 
-export function matchingActivities(activities, type) {
+// A brick leg with a chosen sport matches only that sport
+export function matchingActivities(activities, workout) {
+  const type = workout.type === 'Brick' && workout.brickSport ? workout.brickSport : workout.type
   const sports = SPORT_TYPES[type] || []
   return activities.filter((a) => sports.includes(a.sport_type || a.type))
+}
+
+// The sport (Swim, Bike or Run) of a Strava activity, for naming a brick leg
+export function sportOfActivity(activity) {
+  const sport = activity.sport_type || activity.type
+  return ['Swim', 'Bike', 'Run'].find((s) => SPORT_TYPES[s].includes(sport)) || null
 }
 
 // Brick legs are numbered by Strava start time among the activities picked for that day's
@@ -160,12 +168,14 @@ export function planLine(workout, plan) {
   return `Week ${week} of ${plan.weeks} · ${daysToRace} ${daysToRace === 1 ? 'day' : 'days'} to ${race}`
 }
 
-// Title: "TriSync: <workout title>" (falls back to Strava's own name).
+// Title: "TriSync: <workout title>" (falls back to Strava's own name). A brick leg is
+// named after its sport ("TriSync: Run", "TriSync: Ride"), taken from the activity if none was chosen.
 // Description: the workout notes, prefixed "Brick Part N: " for brick legs.
 function buildUpdate(activity, workout, brickPart) {
   const update = {}
 
-  const baseName = workout.title || (activity.name || '').replace(NAME_PREFIX, '')
+  const brickSport = workout.type === 'Brick' ? workout.brickSport || sportOfActivity(activity) : null
+  const baseName = (brickSport && sportTitle(brickSport)) || workout.title || (activity.name || '').replace(NAME_PREFIX, '')
   const name = `${NAME_PREFIX}${baseName}`
   if (name !== activity.name) update.name = name
 
@@ -193,4 +203,15 @@ export async function applyWorkoutToActivity(accessToken, activityId, workout, b
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(update),
   })
+}
+
+// What to save on a workout once it's linked to a Strava activity. A brick leg with no
+// sport chosen takes it from the activity.
+export function linkUpdates(workout, activity) {
+  const updates = { stravaActivityId: activity.id, stravaActivityName: activity.name }
+  if (workout.type === 'Brick' && !workout.brickSport) {
+    const sport = sportOfActivity(activity)
+    if (sport) updates.brickSport = sport
+  }
+  return updates
 }

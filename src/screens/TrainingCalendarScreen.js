@@ -1,13 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { YStack, XStack, Card, Paragraph, Input } from 'tamagui'
-import { Pressable, Text, ScrollView } from 'react-native'
+import { Pressable, Text, ScrollView, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Calendar, LocaleConfig } from 'react-native-calendars'
+import CalendarHeader from 'react-native-calendars/src/calendar/header'
 
 import { useTraining, isLogged } from '../training/TrainingContext'
-import { Pill, WorkoutRow, AddWorkoutForm } from '../training/WorkoutRow'
+import { Pill, WorkoutList, AddWorkoutForm } from '../training/WorkoutRow'
+import PlanProgress from '../training/PlanProgress'
+import PlanWeekList from '../training/PlanWeekList'
+import { PlanVolumeChart } from '../training/TrainingVolume'
 import {
   isoToDisplay, displayToIso, formatLongDate, formatOrdinalDate, daysBetween, subtractDays, planWeekOf, toIsoDate,
+  mondayOf, dayStatus,
   FONT_REGULAR, FONT_SEMIBOLD, FONT_BOLD, FONT_EXTRABOLD,
 } from '../training/trainingUtils'
 import { useTheme } from '../theme/ThemeContext'
@@ -28,18 +33,15 @@ LocaleConfig.defaultLocale = 'en'
 
 const CALENDAR_DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
-// The Monday on or before a date
-const mondayOf = (iso) => subtractDays(iso, (new Date(`${iso}T00:00:00`).getDay() + 6) % 7)
-
 // Space left of the plan calendar's rows for the plan week labels (W1, W2, ...)
 const WEEK_GUTTER = 32
 
-// Day names above a calendar, in the same seven columns as its rows (the library's own
-// padding is 5 on each side, plus the week label gutter when there is one)
+// Day names under the month title, in the same seven columns as the rows below (inside the
+// calendar's own padding, plus the week label gutter when there is one)
 function WeekdayRow({ gutter = 0 }) {
   const t = useTheme()
   return (
-    <XStack style={{ paddingLeft: 5 + gutter, paddingRight: 5 }} mb="$1">
+    <XStack style={{ paddingLeft: gutter }} mb="$1">
       {CALENDAR_DAY_LABELS.map((label, i) => (
         <YStack key={label} flex={1} alignItems="center">
           <YStack width={32} alignItems="center" style={{ position: 'relative' }}>
@@ -55,6 +57,20 @@ function WeekdayRow({ gutter = 0 }) {
   )
 }
 
+// The library's month header (title and arrows) with our day names beneath it, replacing its own
+const HeaderWithWeekdays = (props) => (
+  <View>
+    <CalendarHeader {...props} hideDayNames />
+    <WeekdayRow />
+  </View>
+)
+const HeaderWithWeekGutter = (props) => (
+  <View>
+    <CalendarHeader {...props} hideDayNames />
+    <WeekdayRow gutter={WEEK_GUTTER} />
+  </View>
+)
+
 const calendarThemeFor = (t, gutter = 0) => ({
   // Replaces the library's week row style, so it repeats its defaults
   'stylesheet.calendar.main': {
@@ -69,9 +85,7 @@ const calendarThemeFor = (t, gutter = 0) => ({
   textMonthFontSize: 16,
 })
 
-// Custom circular day badge — priority order for "worst" status wins the ring color
-const STATUS_PRIORITY = { missed: 0, partial: 1, upcoming: 2, done: 3 }
-
+// Custom circular day badge; a day with several workouts shows the worst status (dayStatus)
 function DayCell({ date, state, marking, onPress }) {
   const t = useTheme()
   if (!date) return null
@@ -199,8 +213,8 @@ function RaceDatePicker({ value, onChange, today, calendarTheme }) {
 
       {open && (
         <YStack borderWidth={1} borderColor={t.border} borderRadius={16} p="$2" backgroundColor={t.surfaceSolid}>
-          <WeekdayRow />
           <Calendar
+            customHeader={HeaderWithWeekdays}
             current={iso || earliest}
             firstDay={1}
             key={t.name}
@@ -263,7 +277,7 @@ function SwitchPlanWarning({ workouts, today }) {
   )
 }
 
-export default function TrainingCalendarScreen({ navigation }) {
+export default function TrainingCalendarScreen({ navigation, route }) {
   const t = useTheme()
   const calendarTheme = useMemo(() => calendarThemeFor(t), [t])
   const planCalendarTheme = useMemo(() => calendarThemeFor(t, WEEK_GUTTER), [t])
@@ -283,6 +297,20 @@ export default function TrainingCalendarScreen({ navigation }) {
 
   const [selectedDate, setSelectedDate] = useState(today)
   const [visibleMonth, setVisibleMonth] = useState(today.slice(0, 7)) // 'YYYY-MM' shown in the plan calendar
+  const [view, setView] = useState('month') // 'month' | 'list' (week by week)
+
+  const openDay = (date) => {
+    setSelectedDate(date)
+    setVisibleMonth(date.slice(0, 7))
+    setView('month')
+  }
+
+  // Opened from the Today tab on a particular day
+  useEffect(() => {
+    const date = route?.params?.date
+    if (!date) return
+    openDay(date)
+  }, [route?.params?.date, route?.params?.at])
 
   // The week column only shows on months whose rows (including the greyed days either side) touch the plan
   const showWeeks = useMemo(() => {
@@ -359,16 +387,10 @@ export default function TrainingCalendarScreen({ navigation }) {
   const markedDates = useMemo(() => {
     const marks = {}
 
-    workouts.forEach((w) => {
-      const status = w.status === 'done' ? 'done' : w.status === 'partial' ? 'partial' : (w.date < today ? 'missed' : 'upcoming')
-      const existing = marks[w.date] || { count: 0, statuses: [] }
-      marks[w.date] = { ...existing, count: existing.count + 1, statuses: [...existing.statuses, status] }
-    })
-
-    Object.keys(marks).forEach((date) => {
-      const statuses = marks[date].statuses
-      const dominant = statuses.reduce((best, s) => (STATUS_PRIORITY[s] < STATUS_PRIORITY[best] ? s : best), statuses[0])
-      marks[date].status = dominant
+    const byDate = {}
+    workouts.forEach((w) => { (byDate[w.date] ||= []).push(w) })
+    Object.entries(byDate).forEach(([date, list]) => {
+      marks[date] = { count: list.length, status: dayStatus(list, today) }
     })
 
     if (planRange) {
@@ -516,7 +538,7 @@ export default function TrainingCalendarScreen({ navigation }) {
 
       <Card backgroundColor={t.surface} borderColor={t.border} borderWidth={1} borderRadius={20} p="$4" gap="$1" style={t.cardShadow}>
         <YStack>
-          <Paragraph style={{ fontFamily: FONT_REGULAR }} color={t.subtle} fontSize={13}>{planRange.weeks} - Week Plan</Paragraph>
+          <Paragraph style={{ fontFamily: FONT_REGULAR }} color={t.subtle} fontSize={13}>{planRange.weeks}-week plan</Paragraph>
           <Paragraph style={{ fontFamily: FONT_REGULAR }} color={t.subtle} fontSize={13}>Start: {formatOrdinalDate(planRange.start)}</Paragraph>
           <Paragraph style={{ fontFamily: FONT_REGULAR }} color={t.subtle} fontSize={13}>Race Day: {formatOrdinalDate(planRange.raceDate)}</Paragraph>
         </YStack>
@@ -527,11 +549,46 @@ export default function TrainingCalendarScreen({ navigation }) {
             ? 'Race day is today'
             : 'Race complete'}
         </Text>
+        <YStack mt="$2" gap="$4">
+          <PlanProgress showHeadline={false} />
+          <PlanVolumeChart onSelectWeek={openDay} />
+        </YStack>
       </Card>
 
+      <XStack alignSelf="center" borderWidth={1} borderColor={t.border} borderRadius={999} p={3} backgroundColor={t.surface}>
+        {[['month', 'Month', 'calendar-outline'], ['list', 'Week by week', 'list-outline']].map(([key, label, icon]) => (
+          <Pressable
+            key={key}
+            onPress={() => setView(key)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: view === key }}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              paddingVertical: 7,
+              paddingHorizontal: 14,
+              borderRadius: 999,
+              backgroundColor: view === key ? t.primary : 'transparent',
+            }}
+          >
+            <Ionicons name={icon} size={14} color={view === key ? t.onAccent : t.subtle} />
+            <Text style={{ fontFamily: FONT_SEMIBOLD, fontSize: 12.5, color: view === key ? t.onAccent : t.text }}>{label}</Text>
+          </Pressable>
+        ))}
+      </XStack>
+
+      {view === 'list' && (
+        <Card backgroundColor={t.surface} borderColor={t.border} borderWidth={1} borderRadius={20} p="$4" style={t.cardShadow}>
+          <PlanWeekList onOpenDay={openDay} />
+        </Card>
+      )}
+
+      {view === 'month' && (<>
+
       <Card backgroundColor={t.surface} borderColor={t.border} borderWidth={1} borderRadius={20} p="$3" style={t.cardShadow}>
-        <WeekdayRow gutter={showWeeks ? WEEK_GUTTER : 0} />
         <Calendar
+          customHeader={showWeeks ? HeaderWithWeekGutter : HeaderWithWeekdays}
           markedDates={markedDates}
           firstDay={1}
           // The library reads its theme once, so adding or removing the week column remounts it on the same month
@@ -544,10 +601,11 @@ export default function TrainingCalendarScreen({ navigation }) {
         />
       </Card>
 
-      <XStack gap="$4" alignItems="center" flexWrap="wrap" px="$4">
+      <XStack columnGap="$3.5" rowGap="$2" alignItems="center" justifyContent="center" flexWrap="wrap" px="$2">
         <LegendDot color={t.status.done} label="Done" />
         <LegendDot color={t.status.partial} label="Partial" />
         <LegendDot color={t.status.missed} label="Missed" />
+        <LegendDot color={t.status.skipped} label="Skipped" />
         <LegendDot color={t.status.upcoming} label="Upcoming" />
         <LegendDot color={t.race} label="Race day" />
       </XStack>
@@ -565,13 +623,12 @@ export default function TrainingCalendarScreen({ navigation }) {
         {dayWorkouts.length === 0 ? (
           <Paragraph style={{ fontFamily: FONT_REGULAR }} color={t.subtle} fontSize={13}>No workouts scheduled yet.</Paragraph>
         ) : (
-          dayWorkouts.map((w) => (
-            <WorkoutRow key={w.id} workout={w} today={today} onUpdate={updateWorkout} onDelete={deleteWorkout} />
-          ))
+          <WorkoutList workouts={dayWorkouts} today={today} onUpdate={updateWorkout} onDelete={deleteWorkout} />
         )}
 
-        <AddWorkoutForm onAdd={({ type, title, notes }) => addWorkout({ date: selectedDate, type, title, notes })} />
+        <AddWorkoutForm onAdd={(w) => addWorkout({ ...w, date: selectedDate })} />
       </Card>
+      </>)}
     </ScrollView>
   )
 }

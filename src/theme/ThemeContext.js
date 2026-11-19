@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native'
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { DEFAULT_APPEARANCE, GRADIENTS, themeFor } from './themes'
+import { localChanged } from '../account/changeBus'
 
 export const STORAGE_KEY = 'trisync/appearance/v1'
 
@@ -12,23 +13,25 @@ export function ThemeProvider({ children }) {
   const [appearance, setAppearanceState] = useState(DEFAULT_APPEARANCE)
   const [loaded, setLoaded] = useState(false)
 
+  // Reads the saved appearance; also called after an account's data replaces the device's
+  const reload = () => AsyncStorage.getItem(STORAGE_KEY)
+    .then((stored) => setAppearanceState({ ...DEFAULT_APPEARANCE, ...(stored ? JSON.parse(stored) : null) }))
+    .catch(() => {})
+
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY)
-      .then((stored) => {
-        if (stored) setAppearanceState({ ...DEFAULT_APPEARANCE, ...JSON.parse(stored) })
-      })
-      .finally(() => setLoaded(true))
+    reload().finally(() => setLoaded(true))
   }, [])
 
   const setAppearance = (changes) => {
     setAppearanceState((prev) => {
       const next = { ...prev, ...changes }
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+      const json = JSON.stringify(next)
+      AsyncStorage.setItem(STORAGE_KEY, json).then(() => localChanged('appearance', json))
       return next
     })
   }
 
-  const value = useMemo(() => ({ theme: themeFor(appearance), appearance, setAppearance }), [appearance])
+  const value = useMemo(() => ({ theme: themeFor(appearance), appearance, setAppearance, reload }), [appearance])
 
   // Avoid flashing the default theme before the saved one loads
   if (!loaded) return null
@@ -45,7 +48,7 @@ export function useTheme() {
 export function useAppearance() {
   const ctx = useContext(ThemeContext)
   if (!ctx) throw new Error('useAppearance must be used within a ThemeProvider')
-  return { appearance: ctx.appearance, setAppearance: ctx.setAppearance, gradients: GRADIENTS }
+  return { appearance: ctx.appearance, setAppearance: ctx.setAppearance, reload: ctx.reload, gradients: GRADIENTS }
 }
 
 // 'imperial' | 'metric', for estimated workout distances

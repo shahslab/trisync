@@ -59,7 +59,7 @@ export function buildPlanIcs(plan) {
     .map((w) => allDayEvent({
       uid: `${w.id}@trisync`,
       date: w.date,
-      summary: w.title ? `${w.type}: ${w.title}` : w.type,
+      summary: [w.type === 'Brick' && w.brickSport ? `Brick · ${w.brickSport}` : w.type, w.title].filter(Boolean).join(': '),
       description: [w.notes, STATUS_LABELS[w.status] && `Status: ${STATUS_LABELS[w.status]}`].filter(Boolean).join('\n\n'),
     }))
   events.push(allDayEvent({ uid: `${plan.id}-race@trisync`, date: plan.raceDate, summary: `Race day: ${raceName}` }))

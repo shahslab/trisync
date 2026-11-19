@@ -22,6 +22,8 @@ import TrainingHeaderMenu from './src/components/TrainingHeaderMenu'
 import HeaderLogo from './src/components/HeaderLogo'
 import { TrainingProvider, useTraining } from './src/training/TrainingContext'
 import SplashOverlay from './src/components/SplashOverlay'
+import UndoToast from './src/components/UndoToast'
+import { AccountGate } from './src/account/AccountContext'
 import { StravaProvider } from './src/strava/StravaContext'
 import { FONT_BOLD, FONT_SEMIBOLD } from './src/training/trainingUtils'
 import { ThemeProvider, AppBackground, useTheme } from './src/theme/ThemeContext'
@@ -81,6 +83,9 @@ function AppShell() {
       {fontsLoaded && (
         <TamaguiProvider config={tamaguiConfig} defaultTheme="dark">
           <Theme name={t.isDark ? 'dark' : 'light'}>
+            {/* Shows the sign-in screen until there's an account; remounts what's below
+                when the account's data arrives from another device */}
+            <AccountGate>
             <StravaProvider>
               <TrainingProvider>
                 <View style={{ flex: 1, ...(Platform.OS === 'web' ? { height: '100vh' } : null) }}>
@@ -92,9 +97,11 @@ function AppShell() {
                       <MainTabs screenOptions={screenOptions} />
                     </NavigationContainer>
                   </AppBackground>
+                  <UndoToast />
                 </View>
               </TrainingProvider>
             </StravaProvider>
+            </AccountGate>
           </Theme>
         </TamaguiProvider>
       )}

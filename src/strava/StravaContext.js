@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { Alert, Platform } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { localChanged } from '../account/changeBus'
 import {
   hasKeys, callbackDomain, canSyncType, exchangeCode, refreshSession, isExpired,
   startWebLogin, takeWebRedirect, nativeLogin,
@@ -37,8 +38,10 @@ export function StravaProvider({ children }) {
     const changed = cleaned?.clientId !== keysRef.current?.clientId || cleaned?.clientSecret !== keysRef.current?.clientSecret
     keysRef.current = hasKeys(cleaned) ? cleaned : null
     setKeys(keysRef.current)
-    if (keysRef.current) await AsyncStorage.setItem(KEYS_STORAGE_KEY, JSON.stringify(keysRef.current))
+    const json = keysRef.current ? JSON.stringify(keysRef.current) : null
+    if (json) await AsyncStorage.setItem(KEYS_STORAGE_KEY, json)
     else await AsyncStorage.removeItem(KEYS_STORAGE_KEY)
+    localChanged('stravaKeys', json)
     // A login belongs to the Strava app that issued it
     if (changed) await saveSession(null)
   }
@@ -114,9 +117,9 @@ export function StravaProvider({ children }) {
     if (!id) {
       const sameDay = (await loadDay()).filter((a) => !linkedActivityIds.includes(a.id))
       if (sameDay.length === 0) return { status: 'none' }
-      const matches = matchingActivities(sameDay, workout.type)
-      // Brick legs always ask: a lone run or ride that day isn't necessarily this leg
-      if (matches.length !== 1 || workout.type === 'Brick') {
+      const matches = matchingActivities(sameDay, workout)
+      // Brick legs without a chosen sport always ask: a lone run or ride that day isn't necessarily this leg
+      if (matches.length !== 1 || (workout.type === 'Brick' && !workout.brickSport)) {
         return { status: 'choose', activities: matches.length ? matches : sameDay }
       }
       id = matches[0].id
@@ -153,6 +156,8 @@ export function StravaProvider({ children }) {
     canSync: (workout) => !!session && canSyncType(workout.type),
     syncWorkout,
     fetchActivity: async (activityId) => getActivity(await accessToken(), activityId),
+    // Every Strava activity that started on a day (local time)
+    fetchActivitiesOn: async (dateIso) => activitiesOnDate(await accessToken(), dateIso),
   }
 
   return <StravaContext.Provider value={value}>{children}</StravaContext.Provider>

@@ -58,10 +58,39 @@ export function subtractDays(isoStr, days) {
 export function statusFor(workout, todayIso) {
   if (workout.status === 'done') return 'done'
   if (workout.status === 'partial') return 'partial'
+  if (workout.status === 'skipped') return 'skipped'
   return workout.date < todayIso ? 'missed' : 'upcoming'
 }
 
 export const TYPE_LIST = Object.values(WORKOUT_TYPES)
+
+// When a day has several workouts, the worst status wins (lower = worse)
+export const STATUS_PRIORITY = { missed: 0, partial: 1, skipped: 2, upcoming: 3, done: 4 }
+
+// Done and partial workouts were trained; skipped ones were deliberately left out (ill, travelling)
+export const isTrained = (w) => w.status === 'done' || w.status === 'partial'
+
+// The displayed status of a day's workouts, or null when there are none
+export function dayStatus(dayWorkouts, todayIso) {
+  return dayWorkouts
+    .map((w) => statusFor(w, todayIso))
+    .reduce((worst, s) => (worst === null || STATUS_PRIORITY[s] < STATUS_PRIORITY[worst] ? s : worst), null)
+}
+
+// The Monday on or before a date
+export const mondayOf = (iso) => subtractDays(iso, (new Date(`${iso}T00:00:00`).getDay() + 6) % 7)
+
+// Rest days don't count towards a week's training
+export const isTraining = (w) => w.type !== 'Rest'
+
+// Effort rating given when logging a workout (1–5)
+export const EFFORT_LABELS = ['Easy', 'Moderate', 'Hard', 'Very hard', 'Max']
+
+// Each Brick workout is one leg; `brickSport` records which sport that leg is
+export const BRICK_SPORTS = ['Swim', 'Bike', 'Run']
+
+// The name a sport goes by in titles: a bike session is a "Ride"
+export const sportTitle = (sport) => (sport === 'Bike' ? 'Ride' : sport)
 
 const NOTE_SECTIONS = /(Warm Up|Main Set|Warm Down):[ \t]*/g
 // The start of a set: "2 x (..." or "11 mins ..."
@@ -160,6 +189,8 @@ export function formatLongDate(isoStr) {
 }
 
 const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+export const shortWeekday = (isoStr) => SHORT_DAYS[new Date(`${isoStr}T00:00:00`).getDay()]
 
 // e.g. "Tue 7"
 export function formatShortDay(isoStr) {

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { localChanged } from '../account/changeBus'
 import {
   todayStr, displayToIso, isValidCalendarDate, daysBetween, subtractDays, makeId, formatPlanNotes,
 } from './trainingUtils'
@@ -63,6 +64,8 @@ export function TrainingProvider({ children }) {
   const [editingPlan, setEditingPlan] = useState(false)
   const [creatingPlan, setCreatingPlan] = useState(false)
   const [loaded, setLoaded] = useState(false)
+  // The workout deleted last, until it's restored or the undo prompt goes: { planId, workout, at }
+  const [lastDeleted, setLastDeleted] = useState(null)
 
   useEffect(() => {
     (async () => {
@@ -81,13 +84,23 @@ export function TrainingProvider({ children }) {
   // Save only after loading, so the empty initial state never overwrites stored data
   useEffect(() => {
     if (!loaded) return
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ plans, activePlanId }))
+    const json = JSON.stringify({ plans, activePlanId })
+    AsyncStorage.setItem(STORAGE_KEY, json)
+      .then(() => localChanged('training', json))
       .then(() => AsyncStorage.multiRemove([V1_STORAGE_KEY, LEGACY_STORAGE_KEY]))
   }, [loaded, plans, activePlanId])
 
   const activePlan = plans.find((p) => p.id === activePlanId) || null
   const planRange = useMemo(() => (activePlan
-    ? { start: activePlan.start, raceDate: activePlan.raceDate, raceName: activePlan.raceName, weeks: activePlan.weeks, source: activePlan.source }
+    ? {
+      start: activePlan.start,
+      raceDate: activePlan.raceDate,
+      raceName: activePlan.raceName,
+      weeks: activePlan.weeks,
+      source: activePlan.source,
+      raceStartTime: activePlan.raceStartTime, // 'HH:MM', set in the race week card
+      raceChecklist: activePlan.raceChecklist, // { [item]: true }
+    }
     : null), [activePlan])
   const workouts = activePlan?.workouts || []
 
@@ -183,7 +196,7 @@ export function TrainingProvider({ children }) {
     }
   }
 
-  const addWorkout = ({ date, type, title, notes }) => {
+  const addWorkout = ({ date, type, title, notes, brickSport }) => {
     updateActiveWorkouts((prev) => [
       ...prev,
       {
@@ -192,6 +205,7 @@ export function TrainingProvider({ children }) {
         type,
         title: (title || '').trim(),
         notes: (notes || '').trim(),
+        ...(type === 'Brick' && brickSport ? { brickSport } : {}),
         status: 'pending',
       },
     ])
@@ -202,7 +216,24 @@ export function TrainingProvider({ children }) {
   }
 
   const deleteWorkout = (id) => {
+    const workout = workouts.find((w) => w.id === id)
+    if (workout) setLastDeleted({ planId: activePlanId, workout, at: Date.now() })
     updateActiveWorkouts((prev) => prev.filter((w) => w.id !== id))
+  }
+
+  // Puts the last deleted workout back in its plan
+  const undoDelete = () => {
+    if (!lastDeleted) return
+    const { planId, workout } = lastDeleted
+    setPlans((prev) => prev.map((p) => (p.id === planId
+      ? { ...p, workouts: [...p.workouts, workout].sort((a, b) => a.date.localeCompare(b.date)) }
+      : p)))
+    setLastDeleted(null)
+  }
+
+  // Race week details on the current plan (raceStartTime, raceChecklist)
+  const updatePlanDetails = (updates) => {
+    setPlans((prev) => prev.map((p) => (p.id === activePlanId ? { ...p, ...updates } : p)))
   }
 
   // Moves a workout (with its brick partner) to another day
@@ -251,6 +282,10 @@ export function TrainingProvider({ children }) {
     addWorkout,
     updateWorkout,
     deleteWorkout,
+    lastDeleted,
+    undoDelete,
+    dismissUndo: () => setLastDeleted(null),
+    updatePlanDetails,
     moveWorkout,
     swapWorkouts,
     planWeekDates,

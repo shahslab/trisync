@@ -22,8 +22,9 @@ const dark = {
   onAccent: '#0b0b0d', // text on primary/status fills
   danger: '#f43f6b',
   dangerBorder: '#5a1a2b',
-  status: { done: '#2fd36b', partial: '#ff8a3d', missed: '#f43f6b', upcoming: '#a1a1aa' },
+  status: { done: '#2fd36b', partial: '#ff8a3d', missed: '#f43f6b', upcoming: '#a1a1aa', skipped: '#8b7cf6' },
   race: '#facc15',
+  strava: '#fc4c02', // Strava's brand orange, for the linked-activity badge
   cardShadow: { boxShadow: '0 8px 24px rgba(0,0,0,0.35)' },
   overlay: 'rgba(0,0,0,0.7)',
 }
@@ -48,8 +49,9 @@ const light = {
   onAccent: '#ffffff',
   danger: '#e11d48',
   dangerBorder: '#fecdd3',
-  status: { done: '#16a34a', partial: '#ea580c', missed: '#e11d48', upcoming: '#71717a' },
+  status: { done: '#16a34a', partial: '#ea580c', missed: '#e11d48', upcoming: '#71717a', skipped: '#7c3aed' },
   race: '#ca8a04',
+  strava: '#fc4c02',
   cardShadow: { boxShadow: '0 6px 20px rgba(24,24,27,0.08)' },
   overlay: 'rgba(24,24,27,0.45)',
 }

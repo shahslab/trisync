@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useNavigation } from '@react-navigation/native'
 import { useTraining } from '../training/TrainingContext'
 import { useStrava } from '../strava/StravaContext'
+import { useAccount } from '../account/AccountContext'
 import { FONT_REGULAR, FONT_SEMIBOLD } from '../training/trainingUtils'
 import { useTheme } from '../theme/ThemeContext'
 import SettingsModal from './SettingsModal'
@@ -22,6 +23,7 @@ export default function TrainingHeaderMenu() {
   const { planRange, plans, activePlanId, selectPlan, startEditingPlan, startNewPlan } = useTraining()
   const navigation = useNavigation()
   const strava = useStrava()
+  const account = useAccount()
   const t = useTheme()
   const itemText = { fontFamily: FONT_SEMIBOLD, fontSize: 14, color: t.text }
   const [open, setOpen] = useState(false)
@@ -103,6 +105,13 @@ export default function TrainingHeaderMenu() {
             {install.available && (
               <Pressable onPress={choose(startInstall)} style={itemStyle}>
                 <Text style={{ ...itemText, color: t.secondary }}>Install TriSync</Text>
+              </Pressable>
+            )}
+
+            {account.enabled && (
+              <Pressable onPress={choose(account.signOut)} style={{ ...itemStyle, borderTopWidth: 1, borderTopColor: t.border, marginTop: 4 }}>
+                <Text style={itemText}>Sign Out</Text>
+                <Text style={{ fontFamily: FONT_REGULAR, fontSize: 12, color: t.subtle }}>{account.user.email}</Text>
               </Pressable>
             )}
           </YStack>

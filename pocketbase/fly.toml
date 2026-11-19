@@ -1,0 +1,23 @@
+# TriSync's PocketBase account server on Fly.io (org: personal / "Rushil Popat").
+# Deploy from this folder: `fly deploy --ha=false` (one Machine: SQLite lives on its volume).
+app = 'trisync-pb'
+primary_region = 'lax'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[mounts]
+  source = 'pb_data'
+  destination = '/pb/pb_data'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  memory = '256mb'
+  cpu_kind = 'shared'
+  cpus = 1

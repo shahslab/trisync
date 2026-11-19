@@ -27,8 +27,10 @@ function durationHours(title) {
   return (hours ? +hours[1] : 0) + (mins ? +mins[1] / 60 : 0) + (secs ? +secs[1] / 3600 : 0)
 }
 
-// A brick is entered as one workout per leg; the run leg's title names the run
-const sportOf = (workout) => (workout.type === 'Brick' ? (/run/i.test(workout.title) ? 'Run' : 'Bike') : workout.type)
+// A brick is entered as one workout per leg: its chosen sport, or else the run leg's title names the run
+export const sportOf = (workout) => (workout.type === 'Brick'
+  ? workout.brickSport || (/run/i.test(workout.title) ? 'Run' : 'Bike')
+  : workout.type)
 
 const roundTo = (value, step) => Math.round(value / step) * step
 
@@ -43,6 +45,16 @@ function formatSwim(metres, units) {
   const value = roundTo(units === 'imperial' ? metres / M_PER_YARD : metres, 50)
   if (!value) return null
   return `${value.toLocaleString('en-US')} ${units === 'imperial' ? 'yards' : 'm'}`
+}
+
+// How long a workout takes, in hours: the title's duration, or a swim's metres at a steady pace.
+// null when the title gives neither.
+export function estimateHours(workout) {
+  const title = workout.title || ''
+  const hours = durationHours(title)
+  if (hours) return hours
+  const metres = sportOf(workout) === 'Swim' && /(\d[\d,]*) ?m\b/.exec(title)
+  return metres ? +metres[1].replace(/,/g, '') / 1000 / SPEEDS.Swim.steady : null
 }
 
 // units: 'imperial' | 'metric'. Returns e.g. "11 miles", or null when there's nothing to add.

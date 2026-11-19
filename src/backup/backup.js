@@ -5,6 +5,7 @@ import { STORAGE_KEY as TRAINING_KEY, normalizeTrainingData } from '../training/
 import { STORAGE_KEY as APPEARANCE_KEY } from '../theme/ThemeContext'
 import { STORAGE_KEY as STRAVA_SESSION_KEY, KEYS_STORAGE_KEY as STRAVA_KEYS_KEY } from '../strava/StravaContext'
 import { toIsoDate } from '../training/trainingUtils'
+import { markDirty } from '../account/syncStore'
 
 // A backup is a JSON file of the on-device storage, so data can move between browsers and
 // devices without a server. The Strava login session is left out on purpose: its tokens
@@ -91,6 +92,8 @@ export async function importBackup() {
     await AsyncStorage.removeItem(STRAVA_SESSION_KEY)
   }
 
+  // Signed in, the imported data goes up to the account once the app reloads
+  await markDirty()
   window.location.reload()
   return {}
 }

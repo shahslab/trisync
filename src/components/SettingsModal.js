@@ -7,6 +7,7 @@ import { useAppearance, useTheme, GradientFill } from '../theme/ThemeContext'
 import { Pill } from '../training/WorkoutRow'
 import { useStrava } from '../strava/StravaContext'
 import { backupSupported, exportBackup, importBackup } from '../backup/backup'
+import { useAccount } from '../account/AccountContext'
 import { FONT_REGULAR, FONT_SEMIBOLD, FONT_BOLD } from '../training/trainingUtils'
 
 const MODES = [
@@ -53,9 +54,45 @@ function GradientSwatch({ gradient, selected, onPress }) {
   )
 }
 
+const SYNC_STATUS = {
+  synced: 'Everything is saved to your account.',
+  saving: 'Saving changes to your account…',
+  offline: 'Can\'t reach the server. Changes are kept on this device and sync when you\'re back online.',
+}
+
+function AccountSettings() {
+  const t = useTheme()
+  const account = useAccount()
+  const [note, setNote] = useState('')
+  const body = { fontFamily: FONT_REGULAR, fontSize: 12.5, lineHeight: 19, color: t.subtle }
+
+  const runDelete = async () => {
+    setNote('')
+    const result = await account.deleteAccount()
+    if (result?.error) setNote(result.error)
+  }
+
+  return (
+    <YStack gap="$2.5">
+      <SectionLabel>Account</SectionLabel>
+      <Text style={body}>
+        Signed in as <Text style={{ fontFamily: FONT_SEMIBOLD, color: t.text }}>{account.user.email}</Text>
+      </Text>
+      <Text style={{ ...body, color: account.status === 'offline' ? t.danger : t.subtle }}>{SYNC_STATUS[account.status]}</Text>
+      <XStack gap="$2" flexWrap="wrap" alignItems="center">
+        <Pill label="Sign out" onPress={account.signOut} />
+        {account.status === 'offline' && <Pill label="Try again" onPress={account.syncNow} />}
+        <Pill label="Delete account" variant="danger" onPress={runDelete} />
+      </XStack>
+      {!!note && <Text style={{ ...body, color: t.danger }}>{note}</Text>}
+    </YStack>
+  )
+}
+
 function StravaSettings() {
   const t = useTheme()
   const strava = useStrava()
+  const account = useAccount()
   const [clientId, setClientId] = useState(strava.keys?.clientId || '')
   const [clientSecret, setClientSecret] = useState(strava.keys?.clientSecret || '')
   const [savedNote, setSavedNote] = useState('')
@@ -82,7 +119,7 @@ function StravaSettings() {
 
   const save = async () => {
     await strava.saveKeys({ clientId, clientSecret })
-    setSavedNote(clientId.trim() && clientSecret.trim() ? 'Keys saved on this device.' : 'Keys removed.')
+    setSavedNote(clientId.trim() && clientSecret.trim() ? (account.enabled ? 'Keys saved to your account.' : 'Keys saved on this device.') : 'Keys removed.')
   }
 
   return (
@@ -98,7 +135,10 @@ function StravaSettings() {
         </XStack>
       ) : (
         <Text style={body}>
-          TriSync connects to Strava through your own free Strava API app, so your keys and data stay on this device.
+          TriSync connects to Strava through your own free Strava API app.{' '}
+          {account.enabled
+            ? 'Your keys are saved to your TriSync account; connect Strava once on each device.'
+            : 'Your keys and data stay on this device.'}
         </Text>
       )}
 
@@ -148,6 +188,7 @@ function StravaSettings() {
 
 function BackupSettings() {
   const t = useTheme()
+  const account = useAccount()
   const [note, setNote] = useState('')
   const body = { fontFamily: FONT_REGULAR, fontSize: 12.5, lineHeight: 19, color: t.subtle }
 
@@ -161,9 +202,9 @@ function BackupSettings() {
     <YStack gap="$2.5">
       <SectionLabel>Backup</SectionLabel>
       <Text style={body}>
-        Everything is saved only in this browser, so clearing site data, private browsing or a home-screen
-        install on iPhone can start you from scratch. Export a backup file to keep your plan, workouts and
-        settings (including your Strava API keys), and import it on any device. After importing, reconnect Strava.
+        {account.enabled
+          ? 'Your account already keeps everything in sync. A backup file is an extra copy you keep yourself. Importing one replaces your account\'s plans, workouts and settings on every device. After importing, reconnect Strava.'
+          : 'Everything is saved only in this browser, so clearing site data, private browsing or a home-screen install on iPhone can start you from scratch. Export a backup file to keep your plan, workouts and settings (including your Strava API keys), and import it on any device. After importing, reconnect Strava.'}
       </Text>
       <XStack gap="$2" flexWrap="wrap" alignItems="center">
         <Pill label="Export backup" variant="primary" onPress={() => exportBackup().catch((e) => setNote(e.message))} />
@@ -177,6 +218,7 @@ function BackupSettings() {
 export default function SettingsModal({ visible, onClose }) {
   const t = useTheme()
   const { appearance, setAppearance, gradients } = useAppearance()
+  const account = useAccount()
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -240,6 +282,8 @@ export default function SettingsModal({ visible, onClose }) {
               </YStack>
 
               <StravaSettings />
+
+              {account.enabled && <AccountSettings />}
 
               {backupSupported && <BackupSettings />}
             </ScrollView>
