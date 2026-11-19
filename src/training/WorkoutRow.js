@@ -401,7 +401,10 @@ export const WorkoutRow = forwardRef(function WorkoutRow({ workout, today, onUpd
     return null
   }
 
+  // Workouts are logged on the day or later; a future one can only be put back to not logged
+  const canLog = !!today && workout.date <= today
   const logStatus = async (nextStatus, earlierLegs) => {
+    if (nextStatus !== 'pending' && !canLog) return null
     onUpdate(workout.id, { status: nextStatus })
     if ((nextStatus === 'done' || nextStatus === 'partial') && strava.canSync(workout)) {
       return runSync({ ...workout, status: nextStatus }, undefined, earlierLegs)
@@ -539,18 +542,27 @@ export const WorkoutRow = forwardRef(function WorkoutRow({ workout, today, onUpd
         <BrickSportPicker value={null} onChange={setBrickSport} color={t.secondary} />
       )}
 
-      {!isRest && (
+      {!isRest && canLog && (
         <XStack gap="$2" alignItems="center" flexWrap="wrap">
           <Pill label="Done" icon="checkmark" active={workout.status === 'done'} color={t.status.done} onPress={() => toggleStatus('done')} />
           <Pill label="Partial" icon="contrast-outline" active={workout.status === 'partial'} color={t.status.partial} onPress={() => toggleStatus('partial')} />
           {/* Skipping is for days that have come: ill, travelling, or rested on purpose */}
-          {(workout.date <= today || workout.status === 'skipped') && (
-            <Pill label="Skip" icon="remove-circle-outline" active={workout.status === 'skipped'} color={t.status.skipped} onPress={() => toggleStatus('skipped')} />
-          )}
+          <Pill label="Skip" icon="remove-circle-outline" active={workout.status === 'skipped'} color={t.status.skipped} onPress={() => toggleStatus('skipped')} />
           {workout.status !== 'pending' && (
-            <Text style={smallTextStyle(t)}>Tap again to undo</Text>
+            <Pill label="Undo" icon="arrow-undo-outline" onPress={() => logStatus('pending')} />
           )}
         </XStack>
+      )}
+      {!isRest && !canLog && (
+        workout.status !== 'pending' ? (
+          // Logged ahead of its day by mistake (before future days were locked): let it be undone
+          <XStack gap="$2" alignItems="center" flexWrap="wrap">
+            <Text style={smallTextStyle(t)}>Marked {STATUS_WORD[workout.status] || workout.status} before its day.</Text>
+            <Pill label="Undo" icon="arrow-undo-outline" onPress={() => logStatus('pending')} />
+          </XStack>
+        ) : (
+          <Text style={smallTextStyle(t)}>You can log this on {formatShortDay(workout.date)}.</Text>
+        )
       )}
 
 
@@ -575,6 +587,8 @@ export const WorkoutRow = forwardRef(function WorkoutRow({ workout, today, onUpd
     </YStack>
   )
 })
+
+const STATUS_WORD = { done: 'done', partial: 'partial', skipped: 'skipped' }
 
 // A brick's legs (Brick workouts on the same day) in one card, with a button to log both
 function BrickCard({ legs, today, onUpdate, onDelete, showDate }) {
@@ -612,7 +626,7 @@ function BrickCard({ legs, today, onUpdate, onDelete, showDate }) {
             {sports.every(Boolean) ? sports.join(' → ') : `${legs.length} legs`}
           </Text>
         </XStack>
-        {!allDone && legs[0].type === 'Brick' && (
+        {!allDone && legs[0].type === 'Brick' && !!today && legs[0].date <= today && (
           <Pill
             label={logging ? 'Logging…' : 'Both done'}
             icon="checkmark-done"
