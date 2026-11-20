@@ -94,6 +94,7 @@ function DayCell({ date, state, marking, onPress }) {
   const status = marking?.status
   const isRace = marking?.isRace
   const isInPlan = !!marking?.inPlan
+  const isToday = !!marking?.isToday
   const count = marking?.count || 0
   const weekLabel = marking?.weekLabel // set on the Monday of each row that overlaps the plan
 
@@ -140,6 +141,21 @@ function DayCell({ date, state, marking, onPress }) {
         justifyContent="center"
         style={{ position: 'relative' }}
       >
+        {isToday && (
+          // Today: a ring just outside the badge, so the day's status and selection still show
+          <YStack
+            style={{
+              position: 'absolute',
+              top: -3,
+              left: -3,
+              width: 38,
+              height: 38,
+              borderRadius: 19,
+              borderWidth: 2,
+              borderColor: t.primary,
+            }}
+          />
+        )}
         <YStack
           style={{
             position: 'absolute',
@@ -420,6 +436,7 @@ export default function TrainingCalendarScreen({ navigation, route }) {
       }
     }
 
+    marks[today] = { ...(marks[today] || {}), isToday: true }
     marks[selectedDate] = { ...(marks[selectedDate] || {}), selected: true }
 
     return marks
@@ -612,6 +629,7 @@ export default function TrainingCalendarScreen({ navigation, route }) {
         <LegendDot color={t.status.skipped} label="Skipped" />
         <LegendDot color={t.status.upcoming} label="Upcoming" />
         <LegendDot color={t.race} label="Race day" />
+        <LegendDot color={t.primary} label="Today" ring />
       </XStack>
 
       {volumeCard}
@@ -639,11 +657,17 @@ export default function TrainingCalendarScreen({ navigation, route }) {
   )
 }
 
-function LegendDot({ color, label }) {
+function LegendDot({ color, label, ring }) {
   const t = useTheme()
   return (
     <XStack alignItems="center" gap="$1.5">
-      <YStack width={8} height={8} borderRadius={4} backgroundColor={color} alignSelf="center" />
+      <YStack
+        width={ring ? 10 : 8}
+        height={ring ? 10 : 8}
+        borderRadius={5}
+        alignSelf="center"
+        {...(ring ? { borderWidth: 2, borderColor: color } : { backgroundColor: color })}
+      />
       <Text style={{ fontFamily: FONT_REGULAR, fontSize: 12, color: t.subtle, lineHeight: 16 }}>
         {label}
       </Text>
