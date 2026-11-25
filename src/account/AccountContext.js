@@ -141,6 +141,8 @@ function SignedInGate({ children }) {
       } else {
         const record = await fetchUserData(a)
         if (!record) await pushLocal(a)
+        // A change saved while this was fetching wins: it goes up next instead of being overwritten
+        else if (pending()) await pushLocal(a)
         else if (record.updated !== meta.updated) await applyRemote(record)
       }
       setStatus(pending() ? 'saving' : 'synced')

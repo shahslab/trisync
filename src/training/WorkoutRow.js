@@ -12,7 +12,7 @@ import {
 import { useTheme, useWorkoutDisplay } from '../theme/ThemeContext'
 import { estimateDistance, distanceTitle, notesByDistance } from './distanceEstimate'
 import { useStrava } from '../strava/StravaContext'
-import { linkUpdates } from '../strava/stravaApi'
+import { canSyncType, linkUpdates } from '../strava/stravaApi'
 import { useTraining } from './TrainingContext'
 import ActivityGraphicModal from '../strava/ActivityGraphicModal'
 
@@ -565,6 +565,15 @@ export const WorkoutRow = forwardRef(function WorkoutRow({ workout, today, onUpd
         )
       )}
 
+
+      {/* Strava's sign-in is kept per device and per web address, so a device (or the move to
+          trisync.fly.dev) can have the keys but no connection: say so rather than skip the sync */}
+      {!strava.connected && strava.hasKeys && canSyncType(workout.type) && isTrained(workout) && !workout.stravaActivityId && (
+        <XStack gap="$2" alignItems="center" flexWrap="wrap">
+          <Text style={{ ...smallTextStyle(t), flexShrink: 1 }}>Strava isn't connected on this device, so this wasn't synced.</Text>
+          <Pill label="Connect Strava" icon="link-outline" color={t.strava} onPress={() => strava.connect()} />
+        </XStack>
+      )}
 
       {strava.canSync(workout) && (
         <StravaSync
