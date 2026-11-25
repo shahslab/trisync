@@ -25,7 +25,7 @@ export default function SyncAllBanner({ onOpenDay }) {
   if (!strava.connected) return null
 
   const unsynced = workouts
-    .filter((w) => isTrained(w) && !w.stravaActivityId && strava.canSync(w))
+    .filter((w) => isTrained(w) && !w.stravaActivityId && !w.stravaDismissed && strava.canSync(w))
     .sort((a, b) => a.date.localeCompare(b.date))
 
   if (!run && unsynced.length === 0) return null
@@ -63,6 +63,12 @@ export default function SyncAllBanner({ onOpenDay }) {
     setRun({ running: false, synced, skipped, error, more: unsynced.length > batch.length })
   }
 
+  // Stops offering these workouts here and on their rows; logging one again brings it back
+  const dismissAll = (list) => {
+    list.forEach((w) => updateWorkout(w.id, { stravaDismissed: true }))
+    setRun(null)
+  }
+
   let body
   if (run?.running) {
     body = <Text style={textStyle(t)}>Syncing {run.done + 1} of {run.total}…</Text>
@@ -84,7 +90,7 @@ export default function SyncAllBanner({ onOpenDay }) {
         )}
         <XStack gap="$2">
           {unsynced.length > 0 && !run.skipped?.length && <Pill label="Sync the rest" onPress={syncAll} />}
-          <Pill label="Dismiss" onPress={() => setRun(null)} />
+          <Pill label="Dismiss" icon="close" onPress={() => dismissAll(unsynced)} />
         </XStack>
       </YStack>
     )
@@ -94,7 +100,10 @@ export default function SyncAllBanner({ onOpenDay }) {
         <Text style={{ ...textStyle(t), flexShrink: 1 }}>
           {plural(unsynced.length, 'logged workout')} {unsynced.length === 1 ? "isn't" : "aren't"} on Strava yet.
         </Text>
-        <Pill label="Sync all" icon="sync-outline" color={t.strava} variant="primary" onPress={syncAll} />
+        <XStack gap="$2">
+          <Pill label="Sync all" icon="sync-outline" color={t.strava} variant="primary" onPress={syncAll} />
+          <Pill label="Dismiss" icon="close" onPress={() => dismissAll(unsynced)} />
+        </XStack>
       </XStack>
     )
   }

@@ -131,7 +131,7 @@ function RowMenu({ onEdit, onSwap, onDelete }) {
 
 const smallTextStyle = (t) => ({ fontFamily: FONT_REGULAR, fontSize: 12.5, lineHeight: 18, color: t.subtle })
 
-function StravaSync({ workout, sync, onRun, onCancel, onShowGraphic }) {
+function StravaSync({ workout, sync, onRun, onCancel, onShowGraphic, onDismiss }) {
   const t = useTheme()
   const smallText = smallTextStyle(t)
 
@@ -165,6 +165,7 @@ function StravaSync({ workout, sync, onRun, onCancel, onShowGraphic }) {
       <XStack gap="$2" alignItems="center" flexWrap="wrap">
         <Text style={{ ...smallText, flexShrink: 1 }}>{message}</Text>
         <Pill label="Retry" onPress={() => onRun()} />
+        <Pill label="Dismiss" icon="close" onPress={onDismiss} />
       </XStack>
     )
   }
@@ -179,11 +180,12 @@ function StravaSync({ workout, sync, onRun, onCancel, onShowGraphic }) {
     )
   }
 
-  // Logged but not linked yet (e.g. marked before Strava was connected)
-  if (isTrained(workout)) {
+  // Logged but not linked yet (e.g. marked before Strava was connected), unless dismissed
+  if (isTrained(workout) && !workout.stravaDismissed) {
     return (
-      <XStack>
+      <XStack gap="$2" flexWrap="wrap">
         <Pill label="Sync to Strava" icon="sync-outline" onPress={() => onRun()} />
+        <Pill label="Dismiss" icon="close" onPress={onDismiss} />
       </XStack>
     )
   }
@@ -405,7 +407,8 @@ export const WorkoutRow = forwardRef(function WorkoutRow({ workout, today, onUpd
   const canLog = !!today && workout.date <= today
   const logStatus = async (nextStatus, earlierLegs) => {
     if (nextStatus !== 'pending' && !canLog) return null
-    onUpdate(workout.id, { status: nextStatus })
+    // Logging again asks about Strava again, even if it was dismissed before
+    onUpdate(workout.id, { status: nextStatus, stravaDismissed: false })
     if ((nextStatus === 'done' || nextStatus === 'partial') && strava.canSync(workout)) {
       return runSync({ ...workout, status: nextStatus }, undefined, earlierLegs)
     }
@@ -414,6 +417,12 @@ export const WorkoutRow = forwardRef(function WorkoutRow({ workout, today, onUpd
   useImperativeHandle(ref, () => ({ logStatus }))
 
   // Tapping the highlighted status again puts the workout back to not logged
+  // Stop offering to sync this workout (e.g. no activity was recorded for it)
+  const dismissSync = () => {
+    setSync(null)
+    onUpdate(workout.id, { stravaDismissed: true })
+  }
+
   const toggleStatus = (nextStatus) => logStatus(workout.status === nextStatus ? 'pending' : nextStatus)
 
   const setBrickSport = (sport) => {
@@ -568,10 +577,11 @@ export const WorkoutRow = forwardRef(function WorkoutRow({ workout, today, onUpd
 
       {/* Strava's sign-in is kept per device and per web address, so a device (or the move to
           trisync.fly.dev) can have the keys but no connection: say so rather than skip the sync */}
-      {!strava.connected && strava.hasKeys && canSyncType(workout.type) && isTrained(workout) && !workout.stravaActivityId && (
+      {!strava.connected && strava.hasKeys && canSyncType(workout.type) && isTrained(workout) && !workout.stravaActivityId && !workout.stravaDismissed && (
         <XStack gap="$2" alignItems="center" flexWrap="wrap">
           <Text style={{ ...smallTextStyle(t), flexShrink: 1 }}>Strava isn't connected on this device, so this wasn't synced.</Text>
           <Pill label="Connect Strava" icon="link-outline" color={t.strava} onPress={() => strava.connect()} />
+          <Pill label="Dismiss" icon="close" onPress={dismissSync} />
         </XStack>
       )}
 
@@ -581,6 +591,7 @@ export const WorkoutRow = forwardRef(function WorkoutRow({ workout, today, onUpd
           sync={sync}
           onRun={(activityId) => runSync(workout, activityId)}
           onCancel={() => setSync(null)}
+          onDismiss={dismissSync}
           onShowGraphic={() => setShowGraphic(true)}
         />
       )}

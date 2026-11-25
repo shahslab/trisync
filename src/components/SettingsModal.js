@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { Linking, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { XStack, YStack } from 'tamagui'
 import { Ionicons } from '@expo/vector-icons'
 
@@ -147,11 +147,30 @@ function StravaSettings() {
         </Text>
       )}
 
+      <Text style={{ ...body, ...strong }}>Set up Strava (once)</Text>
       <Text style={body}>
-        1. Create an app at <Text style={strong}>strava.com/settings/api</Text>{'\n'}
-        2. Set its Authorization Callback Domain to <Text style={strong}>{strava.callbackDomain}</Text>{'\n'}
-        3. Paste its Client ID and Client Secret here
+        1. Open <Text style={strong}>strava.com/settings/api</Text> and create an app. Any name works (e.g. TriSync);
+        set Category to Training and Website to <Text style={strong}>https://{strava.callbackDomain}</Text>.{'\n'}
+        2. Set its <Text style={strong}>Authorization Callback Domain</Text> to <Text style={strong}>{strava.callbackDomain}</Text>:
+        just the name, with no https:// and nothing after it.{'\n'}
+        3. Copy its <Text style={strong}>Client ID</Text> and <Text style={strong}>Client Secret</Text> into the boxes below
+        and tap Save keys.{'\n'}
+        4. Tap <Text style={strong}>Connect Strava</Text>, sign in, and leave both permission boxes ticked (view
+        your activities, and upload and edit them) so TriSync can update them.
       </Text>
+
+      <Text style={{ ...body, ...strong }}>Already have a Strava API app?</Text>
+      <Text style={body}>
+        If connecting fails with a redirect or "invalid" error, open <Text style={strong}>strava.com/settings/api</Text>,
+        tap <Text style={strong}>Edit</Text>, change the Authorization Callback Domain to{' '}
+        <Text style={strong}>{strava.callbackDomain}</Text> and tap Update. Your Client ID and Secret stay the same.
+        {' '}Then tap Connect Strava again. The connection is kept per device, so connect once on each phone,
+        computer or browser you use.
+      </Text>
+
+      <XStack>
+        <Pill label="Open Strava API settings" icon="open-outline" onPress={() => Linking.openURL('https://www.strava.com/settings/api')} />
+      </XStack>
 
       <Text style={body}>
         <Text style={strong}>Daily sync cap:</Text> Strava limits each API app to about 1,000 requests a day
